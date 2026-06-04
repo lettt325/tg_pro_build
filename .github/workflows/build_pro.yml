@@ -130,17 +130,20 @@ jobs:
       - name: ccache cache.
         uses: actions/cache@v5
         with:
-          path: ~/ccache
+          path: /Users/runner/ccache
           key: ${{ runner.OS }}-ccache-${{ github.ref_name }}
           restore-keys: |
             ${{ runner.OS }}-ccache-
 
       - name: Configure ccache.
         run: |
-          ccache --max-size=5G
+          export CCACHE_DIR=/Users/runner/ccache
+          ccache --max-size=10G
           ccache --zero-stats
 
       - name: Telegram Desktop build.
+        env:
+          CCACHE_DIR: /Users/runner/ccache
         run: |
           cd $REPO_NAME
           export CMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH$(find $LibrariesPath/local -mindepth 1 -maxdepth 1 -type d -exec printf ':%s' {} +)"
