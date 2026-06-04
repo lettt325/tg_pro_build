@@ -161,7 +161,7 @@ jobs:
         run: |
           cd $REPO_NAME/build
           macdeployqt TGPro.app -verbose=1
-          codesign --remove-signature TGPro.app || true
+          codesign -s - -f --deep TGPro.app || true
 
       - name: Create DMG.
         run: |
