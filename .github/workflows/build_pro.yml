@@ -27,16 +27,13 @@ jobs:
     permissions:
       contents: write
 
-    env:
-      GIT: "https://github.com"
-      CMAKE_GENERATOR: "Ninja"
-      CMAKE_BUILD_TYPE: "Debug"
-      CMAKE_BUILD_PARALLEL_LEVEL: ""
-      CMAKE_PREFIX_PATH: "/opt/homebrew/opt/ffmpeg@6:/opt/homebrew/opt/openal-soft"
-      TDE2E: "51743dfd01dff6179e2d8f7095729caa4e2222e9"
-      UPLOAD_ARTIFACT: "true"
-      MANUAL_CACHING: "1"
-      AUTO_CACHING: "1"
+      env:
+    GIT: "https://github.com"
+    CMAKE_GENERATOR: "Ninja"
+    CMAKE_BUILD_TYPE: "Debug"
+    CMAKE_BUILD_PARALLEL_LEVEL: ""
+    CMAKE_PREFIX_PATH: "/opt/homebrew/opt/ffmpeg@6:/opt/homebrew/opt/openal-soft"
+    TDE2E: "51743dfd01dff6179e2d8f7095729caa4e2222e9"
 
     steps:
       - name: Get repository name.
@@ -56,16 +53,6 @@ jobs:
           sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
           sudo sed -i '' '/CMAKE_${lang}_FLAGS_DEBUG_INIT/s/ -g//' /opt/homebrew/share/cmake/Modules/Compiler/GNU.cmake
 
-          xcodebuild -version > CACHE_KEY.txt
-          brew list --versions >> CACHE_KEY.txt
-          echo $MANUAL_CACHING >> CACHE_KEY.txt
-          echo "$GITHUB_WORKSPACE" >> CACHE_KEY.txt
-          if [ "$AUTO_CACHING" = "1" ]; then
-            thisFile=$REPO_NAME/.github/workflows/build_pro.yml
-            echo `md5 -q $thisFile` >> CACHE_KEY.txt
-          fi
-          echo "CACHE_KEY=`md5 -q CACHE_KEY.txt`" >> $GITHUB_ENV
-
           echo "MACOSX_DEPLOYMENT_TARGET=$(grep 'set(QT_SUPPORTED_MIN_MACOS_VERSION' /opt/homebrew/Cellar/qtbase/*/lib/cmake/Qt6/Qt6ConfigExtras.cmake | sed -E 's/^.*"(.*)"\)$/\1/')" >> $GITHUB_ENV
           echo "LibrariesPath=`pwd`" >> $GITHUB_ENV
 
@@ -77,7 +64,9 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ${{ env.LibrariesPath }}/local/rnnoise
-          key: ${{ runner.OS }}-rnnoise-${{ env.RNNOISE }}-${{ env.CACHE_KEY }}
+          key: ${{ runner.OS }}-rnnoise-${{ env.RNNOISE }}
+          restore-keys: |
+            ${{ runner.OS }}-rnnoise-
 
       - name: RNNoise.
         if: steps.cache-rnnoise.outputs.cache-hit != 'true'
@@ -95,7 +84,9 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ${{ env.LibrariesPath }}/local/tg_owt
-          key: ${{ runner.OS }}-webrtc-${{ env.WEBRTC }}-${{ env.CACHE_KEY }}
+          key: ${{ runner.OS }}-webrtc-${{ env.WEBRTC }}
+          restore-keys: |
+            ${{ runner.OS }}-webrtc-
 
       - name: WebRTC.
         if: steps.cache-webrtc.outputs.cache-hit != 'true'
@@ -112,7 +103,9 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ${{ env.LibrariesPath }}/local/tde2e
-          key: ${{ runner.OS }}-tde2e-${{ env.TDE2E }}-${{ env.CACHE_KEY }}
+          key: ${{ runner.OS }}-tde2e-${{ env.TDE2E }}
+          restore-keys: |
+            ${{ runner.OS }}-tde2e-
 
       - name: TDE2E.
         if: steps.cache-tde2e.outputs.cache-hit != 'true'
