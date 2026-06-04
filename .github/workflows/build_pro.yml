@@ -148,8 +148,8 @@ jobs:
           cmake -Bbuild . \
             -D CMAKE_C_COMPILER_LAUNCHER=ccache \
             -D CMAKE_CXX_COMPILER_LAUNCHER=ccache \
-            -D TDESKTOP_API_ID=2040 \
-            -D TDESKTOP_API_HASH=b18441a1ff607e10cbf6b9b58b2e4b13 \
+            -D TDESKTOP_API_ID=14565251 \
+            -D TDESKTOP_API_HASH=9952ccf3124c8fa7835d9b8e091dfb4a \
             -D DESKTOP_APP_DISABLE_AUTOUPDATE=ON \
             -D DESKTOP_APP_DISABLE_CRASH_REPORTS=ON
 
