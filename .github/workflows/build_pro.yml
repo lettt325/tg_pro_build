@@ -136,7 +136,6 @@ jobs:
           ccache --set-config=sloppiness=include_file_mtime,include_file_ctime,time_macros,pch_defines,file_stat_matches
           ccache --set-config=compiler_check=content
           ccache --set-config=depend_mode=true
-          ccache --set-config=run_second_cpp=true
 
       - name: Telegram Desktop build.
         env:
