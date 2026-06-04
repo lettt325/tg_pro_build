@@ -133,10 +133,14 @@ jobs:
           export CCACHE_DIR=/Users/runner/ccache
           ccache --max-size=10G
           ccache --zero-stats
+          ccache --set-config=sloppiness=include_file_mtime,include_file_ctime,time_macros,pch_defines,file_stat_matches
+          ccache --set-config=compiler_check=content
 
       - name: Telegram Desktop build.
         env:
           CCACHE_DIR: /Users/runner/ccache
+          CCACHE_SLOPPINESS: include_file_mtime,include_file_ctime,time_macros,pch_defines,file_stat_matches
+          CCACHE_COMPILERCHECK: content
         run: |
           cd $REPO_NAME
           export CMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH$(find $LibrariesPath/local -mindepth 1 -maxdepth 1 -type d -exec printf ':%s' {} +)"
@@ -145,6 +149,8 @@ jobs:
           cmake -Bbuild . \
             -D CMAKE_C_COMPILER_LAUNCHER=ccache \
             -D CMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -D CMAKE_C_FLAGS_INIT=-g0 \
+            -D CMAKE_CXX_FLAGS_INIT=-g0 \
             -D TDESKTOP_API_ID=14565251 \
             -D TDESKTOP_API_HASH=9952ccf3124c8fa7835d9b8e091dfb4a \
             -D DESKTOP_APP_DISABLE_AUTOUPDATE=ON \
