@@ -27,13 +27,13 @@ jobs:
     permissions:
       contents: write
 
-      env:
-    GIT: "https://github.com"
-    CMAKE_GENERATOR: "Ninja"
-    CMAKE_BUILD_TYPE: "Debug"
-    CMAKE_BUILD_PARALLEL_LEVEL: ""
-    CMAKE_PREFIX_PATH: "/opt/homebrew/opt/ffmpeg@6:/opt/homebrew/opt/openal-soft"
-    TDE2E: "51743dfd01dff6179e2d8f7095729caa4e2222e9"
+    env:
+      GIT: "https://github.com"
+      CMAKE_GENERATOR: "Ninja"
+      CMAKE_BUILD_TYPE: "Debug"
+      CMAKE_BUILD_PARALLEL_LEVEL: ""
+      CMAKE_PREFIX_PATH: "/opt/homebrew/opt/ffmpeg@6:/opt/homebrew/opt/openal-soft"
+      TDE2E: "51743dfd01dff6179e2d8f7095729caa4e2222e9"
 
     steps:
       - name: Get repository name.
