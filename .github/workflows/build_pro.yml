@@ -47,7 +47,7 @@ jobs:
 
       - name: First set up.
         run: |
-          brew install --quiet ccache
+          brew install --quiet ada-url autoconf automake boost cmake ffmpeg@6 jpeg-xl libavif libheif libtool openal-soft openh264 openssl opus ninja pkg-config python qtbase qtimageformats qtshadertools qtsvg xz ccache
           sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 
           echo "MACOSX_DEPLOYMENT_TARGET=$(grep 'set(QT_SUPPORTED_MIN_MACOS_VERSION' /opt/homebrew/Cellar/qtbase/*/lib/cmake/Qt6/Qt6ConfigExtras.cmake | sed -E 's/^.*"(.*)"\)$/\1/')" >> $GITHUB_ENV
@@ -117,6 +117,31 @@ jobs:
           cmake --build build
           cmake --install build
 
+      - name: Build cache.
+        id: cache-build
+        uses: actions/cache@v5
+        with:
+          path: /Users/runner/build.tar.gz
+          key: ${{ runner.OS }}-build-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.OS }}-build-
+
+      - name: Restore build.
+        run: |
+          if [ -f /Users/runner/build.tar.gz ]; then
+            rm -rf $REPO_NAME/build
+            mkdir -p $REPO_NAME/build
+            tar -xzf /Users/runner/build.tar.gz -C $REPO_NAME/build
+            echo "build dir restored"
+          else
+            echo "no build dir cache"
+          fi
+
+      - name: Fix git timestamps.
+        run: |
+          cd $REPO_NAME
+          git ls-files -z | xargs -0 touch -d "$(git log -1 --format=%cI)" 2>/dev/null || true
+
       - name: ccache cache.
         id: cache-ccache
         uses: actions/cache@v5
@@ -176,6 +201,12 @@ jobs:
         run: |
           tar -cf /Users/runner/ccache.tar -C /Users/runner/ccache .
           echo "ccache saved ($(du -sh /Users/runner/ccache.tar | cut -f1))"
+
+      - name: Save build.
+        run: |
+          cd $REPO_NAME
+          tar -czf /Users/runner/build.tar.gz -C build .
+          echo "build dir saved ($(du -sh /Users/runner/build.tar.gz | cut -f1))"
 
       - name: Package app.
         run: |
