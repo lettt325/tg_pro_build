@@ -30,7 +30,6 @@ jobs:
     env:
       GIT: "https://github.com"
       CMAKE_GENERATOR: "Ninja"
-      CMAKE_BUILD_TYPE: "Debug"
       CMAKE_BUILD_PARALLEL_LEVEL: ""
       CMAKE_PREFIX_PATH: "/opt/homebrew/opt/ffmpeg@6:/opt/homebrew/opt/openal-soft"
       TDE2E: "51743dfd01dff6179e2d8f7095729caa4e2222e9"
@@ -49,7 +48,7 @@ jobs:
         run: |
           brew update
           brew upgrade || true
-          brew install ada-url autoconf automake boost cmake ffmpeg@6 jpeg-xl libavif libheif libtool openal-soft openh264 openssl opus ninja pkg-config python qtbase qtimageformats qtshadertools qtsvg xz ccache || true
+          brew install ada-url autoconf automake boost cmake ffmpeg@6 jpeg-xl libavif libheif libtool openal-soft openh264 openssl opus ninja pkg-config python qtbase qtimageformats qtshadertools qtsvg xz ccache zstd || true
           sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
           sudo sed -i '' '/CMAKE_${lang}_FLAGS_DEBUG_INIT/s/ -g//' /opt/homebrew/share/cmake/Modules/Compiler/GNU.cmake
 
@@ -121,6 +120,7 @@ jobs:
           cmake --install build
 
       - name: ccache cache.
+        id: cache-ccache
         uses: actions/cache@v5
         with:
           path: /Users/runner/ccache.tar
@@ -134,10 +134,32 @@ jobs:
             rm -rf /Users/runner/ccache
             mkdir -p /Users/runner/ccache
             tar -xf /Users/runner/ccache.tar -C /Users/runner/ccache
-            echo "ccache restored from tar"
+            echo "ccache restored"
           else
             mkdir -p /Users/runner/ccache
-            echo "no ccache found, starting fresh"
+            echo "no ccache, fresh start"
+          fi
+
+      - name: Build cache.
+        id: cache-build
+        uses: actions/cache@v5
+        with:
+          path: /Users/runner/build.tar.zst
+          key: ${{ runner.OS }}-build-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.OS }}-build-${{ github.ref_name }}-
+            ${{ runner.OS }}-build-
+
+      - name: Restore build.
+        run: |
+          if [ -f /Users/runner/build.tar.zst ]; then
+            rm -rf $REPO_NAME/build
+            mkdir -p $REPO_NAME/build
+            tar -I 'zstd -d -T0' -xf /Users/runner/build.tar.zst -C $REPO_NAME/build
+            echo "build dir restored"
+            echo "BUILD_RESTORED=true" >> $GITHUB_ENV
+          else
+            echo "BUILD_RESTORED=false" >> $GITHUB_ENV
           fi
 
       - name: Configure ccache.
@@ -160,24 +182,34 @@ jobs:
           export CMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH$(find $LibrariesPath/local -mindepth 1 -maxdepth 1 -type d -exec printf ':%s' {} +)"
           export PATH="/usr/libexec/ccache:/opt/homebrew/opt/ccache/libexec:$PATH"
 
-          cmake -Bbuild . \
-            -D CMAKE_C_COMPILER_LAUNCHER=ccache \
-            -D CMAKE_CXX_COMPILER_LAUNCHER=ccache \
-            -D CMAKE_C_FLAGS_INIT=-g0 \
-            -D CMAKE_CXX_FLAGS_INIT=-g0 \
-            -D TDESKTOP_API_ID=14565251 \
-            -D TDESKTOP_API_HASH=9952ccf3124c8fa7835d9b8e091dfb4a \
-            -D DESKTOP_APP_DISABLE_AUTOUPDATE=ON \
-            -D DESKTOP_APP_DISABLE_CRASH_REPORTS=ON
-
-          cmake --build build
+          if [ "$BUILD_RESTORED" = "true" ] && [ -f build/build.ninja ]; then
+            echo "Build dir restored, running incremental build..."
+            cmake --build build
+          else
+            echo "Fresh build..."
+            cmake -Bbuild . \
+              -D CMAKE_C_COMPILER_LAUNCHER=ccache \
+              -D CMAKE_CXX_COMPILER_LAUNCHER=ccache \
+              -D CMAKE_C_FLAGS_INIT=-g0 \
+              -D CMAKE_CXX_FLAGS_INIT=-g0 \
+              -D TDESKTOP_API_ID=14565251 \
+              -D TDESKTOP_API_HASH=9952ccf3124c8fa7835d9b8e091dfb4a \
+              -D DESKTOP_APP_DISABLE_AUTOUPDATE=ON \
+              -D DESKTOP_APP_DISABLE_CRASH_REPORTS=ON
+            cmake --build build
+          fi
 
           ccache --show-stats
 
       - name: Save ccache.
         run: |
           tar -cf /Users/runner/ccache.tar -C /Users/runner/ccache .
-          echo "ccache saved to tar ($(du -sh /Users/runner/ccache.tar | cut -f1))"
+          echo "ccache saved ($(du -sh /Users/runner/ccache.tar | cut -f1))"
+
+      - name: Save build.
+        run: |
+          tar -I 'zstd -T0 --fast' -cf /Users/runner/build.tar.zst -C $REPO_NAME/build .
+          echo "build dir saved ($(du -sh /Users/runner/build.tar.zst | cut -f1))"
 
       - name: Package app.
         run: |
@@ -200,7 +232,7 @@ jobs:
           git push -f origin nightly
           gh release create nightly build/TGPro.dmg \
             --title "TG Pro Nightly Build" \
-            --notes "Automated build from commit ${{ github.sha }}. Built on $(date -u +'%Y-%m-%d %H:%M UTC')." \
+            --notes "Automated build from commit ${{ github.sha }}." \
             --prerelease
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
