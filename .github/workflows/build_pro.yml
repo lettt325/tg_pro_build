@@ -123,10 +123,22 @@ jobs:
       - name: ccache cache.
         uses: actions/cache@v5
         with:
-          path: /Users/runner/ccache
+          path: /Users/runner/ccache.tar
           key: ${{ runner.OS }}-ccache-${{ github.ref_name }}
           restore-keys: |
             ${{ runner.OS }}-ccache-
+
+      - name: Restore ccache.
+        run: |
+          if [ -f /Users/runner/ccache.tar ]; then
+            rm -rf /Users/runner/ccache
+            mkdir -p /Users/runner/ccache
+            tar -xf /Users/runner/ccache.tar -C /Users/runner/ccache
+            echo "ccache restored from tar"
+          else
+            mkdir -p /Users/runner/ccache
+            echo "no ccache found, starting fresh"
+          fi
 
       - name: Configure ccache.
         run: |
@@ -161,6 +173,11 @@ jobs:
           cmake --build build
 
           ccache --show-stats
+
+      - name: Save ccache.
+        run: |
+          tar -cf /Users/runner/ccache.tar -C /Users/runner/ccache .
+          echo "ccache saved to tar ($(du -sh /Users/runner/ccache.tar | cut -f1))"
 
       - name: Package app.
         run: |
