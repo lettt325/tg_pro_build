@@ -154,7 +154,6 @@ jobs:
           CCACHE_SLOPPINESS: include_file_mtime,include_file_ctime,time_macros,pch_defines,file_stat_matches,locale,random_seed,system_headers
           CCACHE_COMPILERCHECK: content
           CCACHE_BASEDIR: /opt/homebrew
-          CCACHE_HASHDIR: "false"
         run: |
           cd $REPO_NAME
           export CMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH$(find $LibrariesPath/local -mindepth 1 -maxdepth 1 -type d -exec printf ':%s' {} +)"
