@@ -50,7 +50,6 @@ jobs:
           brew upgrade || true
           brew install ada-url autoconf automake boost cmake ffmpeg@6 jpeg-xl libavif libheif libtool openal-soft openh264 openssl opus ninja pkg-config python qtbase qtimageformats qtshadertools qtsvg xz ccache || true
           sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
-          sudo sed -i '' '/CMAKE_${lang}_FLAGS_DEBUG_INIT/s/ -g//' /opt/homebrew/share/cmake/Modules/Compiler/GNU.cmake
 
           echo "MACOSX_DEPLOYMENT_TARGET=$(grep 'set(QT_SUPPORTED_MIN_MACOS_VERSION' /opt/homebrew/Cellar/qtbase/*/lib/cmake/Qt6/Qt6ConfigExtras.cmake | sed -E 's/^.*"(.*)"\)$/\1/')" >> $GITHUB_ENV
           echo "LibrariesPath=`pwd`" >> $GITHUB_ENV
@@ -124,7 +123,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: /Users/runner/ccache.tar
-          key: ${{ runner.OS }}-ccache-${{ github.ref_name }}
+          key: ${{ runner.OS }}-ccache-${{ hashFiles('.github/workflows/build_pro.yml') }}
           restore-keys: |
             ${{ runner.OS }}-ccache-
 
@@ -137,29 +136,7 @@ jobs:
             echo "ccache restored"
           else
             mkdir -p /Users/runner/ccache
-            echo "no ccache, fresh start"
-          fi
-
-      - name: Build cache.
-        id: cache-build
-        uses: actions/cache@v5
-        with:
-          path: /Users/runner/build.tar.gz
-          key: ${{ runner.OS }}-build-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.OS }}-build-${{ github.ref_name }}-
-            ${{ runner.OS }}-build-
-
-      - name: Restore build.
-        run: |
-          if [ -f /Users/runner/build.tar.gz ]; then
-            rm -rf $REPO_NAME/build
-            mkdir -p $REPO_NAME/build
-            tar -xzf /Users/runner/build.tar.gz -C $REPO_NAME/build
-            echo "build dir restored"
-            echo "BUILD_RESTORED=true" >> $GITHUB_ENV
-          else
-            echo "BUILD_RESTORED=false" >> $GITHUB_ENV
+            echo "no ccache"
           fi
 
       - name: Configure ccache.
@@ -178,24 +155,19 @@ jobs:
         run: |
           cd $REPO_NAME
           export CMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH$(find $LibrariesPath/local -mindepth 1 -maxdepth 1 -type d -exec printf ':%s' {} +)"
-          export PATH="/usr/libexec/ccache:/opt/homebrew/opt/ccache/libexec:$PATH"
+          export PATH="/opt/homebrew/opt/ccache/libexec:$PATH"
 
-          if [ "$BUILD_RESTORED" = "true" ] && [ -f build/build.ninja ]; then
-            echo "Build dir restored, running incremental build..."
-            cmake --build build
-          else
-            echo "Fresh build..."
-            cmake -Bbuild . \
-              -D CMAKE_C_COMPILER_LAUNCHER=ccache \
-              -D CMAKE_CXX_COMPILER_LAUNCHER=ccache \
-              -D CMAKE_C_FLAGS_INIT=-g0 \
-              -D CMAKE_CXX_FLAGS_INIT=-g0 \
-              -D TDESKTOP_API_ID=14565251 \
-              -D TDESKTOP_API_HASH=9952ccf3124c8fa7835d9b8e091dfb4a \
-              -D DESKTOP_APP_DISABLE_AUTOUPDATE=ON \
-              -D DESKTOP_APP_DISABLE_CRASH_REPORTS=ON
-            cmake --build build
-          fi
+          cmake -Bbuild . \
+            -D CMAKE_C_COMPILER_LAUNCHER=ccache \
+            -D CMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -D CMAKE_C_FLAGS_INIT=-g0 \
+            -D CMAKE_CXX_FLAGS_INIT=-g0 \
+            -D TDESKTOP_API_ID=14565251 \
+            -D TDESKTOP_API_HASH=9952ccf3124c8fa7835d9b8e091dfb4a \
+            -D DESKTOP_APP_DISABLE_AUTOUPDATE=ON \
+            -D DESKTOP_APP_DISABLE_CRASH_REPORTS=ON
+
+          cmake --build build
 
           ccache --show-stats
 
@@ -203,11 +175,6 @@ jobs:
         run: |
           tar -cf /Users/runner/ccache.tar -C /Users/runner/ccache .
           echo "ccache saved ($(du -sh /Users/runner/ccache.tar | cut -f1))"
-
-      - name: Save build.
-        run: |
-          tar -czf /Users/runner/build.tar.gz -C $REPO_NAME/build .
-          echo "build dir saved ($(du -sh /Users/runner/build.tar.gz | cut -f1))"
 
       - name: Package app.
         run: |
