@@ -48,7 +48,7 @@ jobs:
         run: |
           brew update
           brew upgrade || true
-          brew install ada-url autoconf automake boost cmake ffmpeg@6 jpeg-xl libavif libheif libtool openal-soft openh264 openssl opus ninja pkg-config python qtbase qtimageformats qtshadertools qtsvg xz ccache zstd || true
+          brew install ada-url autoconf automake boost cmake ffmpeg@6 jpeg-xl libavif libheif libtool openal-soft openh264 openssl opus ninja pkg-config python qtbase qtimageformats qtshadertools qtsvg xz ccache || true
           sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
           sudo sed -i '' '/CMAKE_${lang}_FLAGS_DEBUG_INIT/s/ -g//' /opt/homebrew/share/cmake/Modules/Compiler/GNU.cmake
 
@@ -144,7 +144,7 @@ jobs:
         id: cache-build
         uses: actions/cache@v5
         with:
-          path: /Users/runner/build.tar.zst
+          path: /Users/runner/build.tar.gz
           key: ${{ runner.OS }}-build-${{ github.sha }}
           restore-keys: |
             ${{ runner.OS }}-build-${{ github.ref_name }}-
@@ -152,10 +152,10 @@ jobs:
 
       - name: Restore build.
         run: |
-          if [ -f /Users/runner/build.tar.zst ]; then
+          if [ -f /Users/runner/build.tar.gz ]; then
             rm -rf $REPO_NAME/build
             mkdir -p $REPO_NAME/build
-            tar -I 'zstd -d -T0' -xf /Users/runner/build.tar.zst -C $REPO_NAME/build
+            tar -xzf /Users/runner/build.tar.gz -C $REPO_NAME/build
             echo "build dir restored"
             echo "BUILD_RESTORED=true" >> $GITHUB_ENV
           else
@@ -169,14 +169,12 @@ jobs:
           ccache --zero-stats
           ccache --set-config=sloppiness=include_file_mtime,include_file_ctime,time_macros,pch_defines,file_stat_matches
           ccache --set-config=compiler_check=content
-          ccache --set-config=depend_mode=true
 
       - name: Telegram Desktop build.
         env:
           CCACHE_DIR: /Users/runner/ccache
           CCACHE_SLOPPINESS: include_file_mtime,include_file_ctime,time_macros,pch_defines,file_stat_matches
           CCACHE_COMPILERCHECK: content
-          CCACHE_DEPEND: 1
         run: |
           cd $REPO_NAME
           export CMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH$(find $LibrariesPath/local -mindepth 1 -maxdepth 1 -type d -exec printf ':%s' {} +)"
@@ -208,8 +206,8 @@ jobs:
 
       - name: Save build.
         run: |
-          tar -I 'zstd -T0 --fast' -cf /Users/runner/build.tar.zst -C $REPO_NAME/build .
-          echo "build dir saved ($(du -sh /Users/runner/build.tar.zst | cut -f1))"
+          tar -czf /Users/runner/build.tar.gz -C $REPO_NAME/build .
+          echo "build dir saved ($(du -sh /Users/runner/build.tar.gz | cut -f1))"
 
       - name: Package app.
         run: |
