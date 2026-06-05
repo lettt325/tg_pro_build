@@ -143,15 +143,18 @@ jobs:
           export CCACHE_DIR=/Users/runner/ccache
           ccache --max-size=10G
           ccache --zero-stats
-          ccache --set-config=sloppiness=include_file_mtime,include_file_ctime,time_macros,pch_defines,file_stat_matches
+          ccache --set-config=sloppiness=include_file_mtime,include_file_ctime,time_macros,pch_defines,file_stat_matches,locale,random_seed,system_headers
           ccache --set-config=compiler_check=content
+          ccache --set-config=hash_dir=false
+          ccache --set-config=base_dir=/opt/homebrew
 
       - name: Telegram Desktop build.
         env:
           CCACHE_DIR: /Users/runner/ccache
-          CCACHE_SLOPPINESS: include_file_mtime,include_file_ctime,time_macros,pch_defines,file_stat_matches
+          CCACHE_SLOPPINESS: include_file_mtime,include_file_ctime,time_macros,pch_defines,file_stat_matches,locale,random_seed,system_headers
           CCACHE_COMPILERCHECK: content
-          CCACHE_NOHASHDIR: "true"
+          CCACHE_BASEDIR: /opt/homebrew
+          CCACHE_HASHDIR: "false"
         run: |
           cd $REPO_NAME
           export CMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH$(find $LibrariesPath/local -mindepth 1 -maxdepth 1 -type d -exec printf ':%s' {} +)"
