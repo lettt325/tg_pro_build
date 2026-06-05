@@ -32,7 +32,6 @@ jobs:
       CMAKE_GENERATOR: "Ninja"
       CMAKE_BUILD_PARALLEL_LEVEL: "6"
       CMAKE_PREFIX_PATH: "/opt/homebrew/opt/ffmpeg@6:/opt/homebrew/opt/openal-soft"
-      HOMEBREW_NO_AUTO_UPDATE: "1"
       HOMEBREW_NO_INSTALL_UPGRADE: "1"
       TDE2E: "51743dfd01dff6179e2d8f7095729caa4e2222e9"
 
