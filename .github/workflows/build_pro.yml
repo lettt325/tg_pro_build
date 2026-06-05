@@ -23,7 +23,7 @@ on:
 jobs:
   build:
     name: macOS DMG
-    runs-on: macos-latest
+    runs-on: depot-macos-latest
     permissions:
       contents: write
 
