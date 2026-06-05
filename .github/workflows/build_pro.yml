@@ -30,8 +30,10 @@ jobs:
     env:
       GIT: "https://github.com"
       CMAKE_GENERATOR: "Ninja"
-      CMAKE_BUILD_PARALLEL_LEVEL: ""
+      CMAKE_BUILD_PARALLEL_LEVEL: "6"
       CMAKE_PREFIX_PATH: "/opt/homebrew/opt/ffmpeg@6:/opt/homebrew/opt/openal-soft"
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+      HOMEBREW_NO_INSTALL_UPGRADE: "1"
       TDE2E: "51743dfd01dff6179e2d8f7095729caa4e2222e9"
 
     steps:
@@ -46,9 +48,7 @@ jobs:
 
       - name: First set up.
         run: |
-          brew update
-          brew upgrade || true
-          brew install ada-url autoconf automake boost cmake ffmpeg@6 jpeg-xl libavif libheif libtool openal-soft openh264 openssl opus ninja pkg-config python qtbase qtimageformats qtshadertools qtsvg xz ccache || true
+          brew install --quiet ada-url autoconf automake boost cmake ffmpeg@6 jpeg-xl libavif libheif libtool openal-soft openh264 openssl opus ninja pkg-config python qtbase qtimageformats qtshadertools qtsvg xz ccache
           sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 
           echo "MACOSX_DEPLOYMENT_TARGET=$(grep 'set(QT_SUPPORTED_MIN_MACOS_VERSION' /opt/homebrew/Cellar/qtbase/*/lib/cmake/Qt6/Qt6ConfigExtras.cmake | sed -E 's/^.*"(.*)"\)$/\1/')" >> $GITHUB_ENV
@@ -123,7 +123,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: /Users/runner/ccache.tar
-          key: ${{ runner.OS }}-ccache-${{ hashFiles('.github/workflows/build_pro.yml') }}
+          key: ${{ runner.OS }}-ccache-v3
           restore-keys: |
             ${{ runner.OS }}-ccache-
 
@@ -152,6 +152,7 @@ jobs:
           CCACHE_DIR: /Users/runner/ccache
           CCACHE_SLOPPINESS: include_file_mtime,include_file_ctime,time_macros,pch_defines,file_stat_matches
           CCACHE_COMPILERCHECK: content
+          CCACHE_NOHASHDIR: "true"
         run: |
           cd $REPO_NAME
           export CMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH$(find $LibrariesPath/local -mindepth 1 -maxdepth 1 -type d -exec printf ':%s' {} +)"
@@ -160,14 +161,14 @@ jobs:
           cmake -Bbuild . \
             -D CMAKE_C_COMPILER_LAUNCHER=ccache \
             -D CMAKE_CXX_COMPILER_LAUNCHER=ccache \
-            -D CMAKE_C_FLAGS_INIT=-g0 \
-            -D CMAKE_CXX_FLAGS_INIT=-g0 \
+            -D CMAKE_C_FLAGS_INIT="-g0 -O0" \
+            -D CMAKE_CXX_FLAGS_INIT="-g0 -O0" \
             -D TDESKTOP_API_ID=14565251 \
             -D TDESKTOP_API_HASH=9952ccf3124c8fa7835d9b8e091dfb4a \
             -D DESKTOP_APP_DISABLE_AUTOUPDATE=ON \
             -D DESKTOP_APP_DISABLE_CRASH_REPORTS=ON
 
-          cmake --build build
+          ninja -C build -j 6
 
           ccache --show-stats
 
