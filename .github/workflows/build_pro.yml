@@ -153,12 +153,10 @@ jobs:
           CCACHE_SLOPPINESS: include_file_mtime,include_file_ctime,time_macros,pch_defines,file_stat_matches
           CCACHE_COMPILERCHECK: content
           CCACHE_NOHASHDIR: "true"
-          CCACHE_LOGFILE: /Users/runner/ccache-log.txt
         run: |
           cd $REPO_NAME
           export CMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH$(find $LibrariesPath/local -mindepth 1 -maxdepth 1 -type d -exec printf ':%s' {} +)"
           export PATH="/opt/homebrew/opt/ccache/libexec:$PATH"
-          echo "NCPU=$(sysctl -n hw.logicalcpu)"
 
           cmake -Bbuild . \
             -D CMAKE_C_COMPILER_LAUNCHER=ccache \
@@ -174,47 +172,6 @@ jobs:
           ninja -C build -j $(sysctl -n hw.logicalcpu)
 
           ccache --show-stats
-
-      - name: Diagnose ccache nondeterminism.
-        if: always()
-        continue-on-error: true
-        run: |
-          cd $REPO_NAME
-          echo "############## GENERATED HEADERS (fingerprint + embedded date/path) ##############"
-          # These are #included by the PCH (stdafx.h). If their sha256 differs between two runs,
-          # codegen is nondeterministic -> PCH miss -> every C++ TU misses.
-          for f in $(find build -type f \( -name 'scheme.h' -o -name 'palette.h' -o -name 'style_basic.h' -o -name 'lang_auto.h' -o -name 'numbers.h' \) 2>/dev/null | sort); do
-            printf '%-90s ' "$f"
-            shasum -a 256 "$f" | cut -d' ' -f1
-          done
-          echo
-          echo "############## #line / absolute-path leakage in scheme.h ##############"
-          SCH=$(find build -type f -name 'scheme.h' 2>/dev/null | head -1)
-          [ -n "$SCH" ] && { grep -m3 -n '#line' "$SCH" || echo "  (no #line directives)"; }
-          echo
-          echo "############## date/time-like tokens inside generated headers ##############"
-          for f in $(find build -type f \( -name 'scheme.h' -o -name 'palette.h' -o -name 'style_basic.h' -o -name 'lang_auto.h' \) 2>/dev/null); do
-            HITS=$(grep -aoE '20[0-9]{2}[-/][0-9]{2}[-/][0-9]{2}|[A-Z][a-z]{2} +[0-9]{1,2} 20[0-9]{2}|[0-9]{2}:[0-9]{2}:[0-9]{2}' "$f" | sort -u | head -3)
-            [ -n "$HITS" ] && { echo "-- $f"; echo "$HITS"; }
-          done
-          echo
-          echo "############## COMPILED PCH BINARIES (fingerprint) ##############"
-          # If generated headers match across runs but these differ -> clang PCH itself is
-          # nondeterministic (embeds abs paths/timestamp) -> need -ffile-prefix-map / -fno-pch-timestamp.
-          for p in $(find build -type f \( -name '*.gch' -o -name 'cmake_pch.hxx.pch' -o -name '*.pch' \) 2>/dev/null | sort); do
-            printf '%-90s ' "$p"
-            shasum -a 256 "$p" | cut -d' ' -f1
-          done
-          echo
-          echo "############## ccache log: PCH + data_peer decisions ##############"
-          LOG=/Users/runner/ccache-log.txt
-          if [ -f "$LOG" ]; then
-            echo "[lines mentioning cmake_pch]"; grep -i 'cmake_pch' "$LOG" | head -40 || true
-            echo "[lines mentioning data_peer]"; grep -i 'data_peer' "$LOG" | head -40 || true
-            echo "[miss-reason summary]"; grep -iE 'Result: |cache miss|cache hit|Failed|too new|unsupported' "$LOG" | sort | uniq -c | sort -rn | head -20 || true
-          else
-            echo "no ccache log at $LOG"
-          fi
 
       - name: Save ccache.
         run: |
