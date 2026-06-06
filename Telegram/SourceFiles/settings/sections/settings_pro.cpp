@@ -145,7 +145,8 @@ void ShowEditWeakWordsBox(
 		const auto wordsWrap = box->addRow(
 			object_ptr<Ui::VerticalLayout>(box));
 
-		const auto rebuild = [=] {
+		const auto rebuild = box->lifetime().make_state<Fn<void()>>();
+		*rebuild = [=] {
 			while (wordsWrap->count()) {
 				delete wordsWrap->widgetAt(0);
 			}
@@ -163,12 +164,12 @@ void ShowEditWeakWordsBox(
 						updated.erase(updated.begin() + i);
 						state->weakWords = std::move(updated);
 					}
-					rebuild();
+					(*rebuild)();
 				});
 			}
 			wordsWrap->resizeToWidth(wordsWrap->width());
 		};
-		rebuild();
+		(*rebuild)();
 
 		const auto addWord = [=] {
 			const auto text = field->getLastText().trimmed();
@@ -186,7 +187,7 @@ void ShowEditWeakWordsBox(
 			updated.push_back(text);
 			state->weakWords = std::move(updated);
 			field->setText(QString());
-			rebuild();
+			(*rebuild)();
 		};
 
 		field->submits(
