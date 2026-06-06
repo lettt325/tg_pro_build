@@ -203,18 +203,24 @@ jobs:
           hdiutil create -volname "TG Pro" -srcfolder dmg -ov -format UDZO "TGPro.dmg"
 
       - name: Generate Sparkle appcast.
-        if: ${{ secrets.SPARKLE_ED25519_PRIVATE_KEY != '' }}
         env:
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_ED25519_PRIVATE_KEY }}
         run: |
           cd $REPO_NAME
+          if [ -z "$SPARKLE_PRIVATE_KEY" ]; then
+            echo "SPARKLE_ED25519_PRIVATE_KEY not set, skipping appcast"
+            exit 0
+          fi
           SIGN_TOOL="$SPARKLE_PATH/Sparkle.framework/Versions/B/Resources/sign_update"
-          if [ -x "$SIGN_TOOL" ] && [ -n "$SPARKLE_PRIVATE_KEY" ]; then
-            SIGNATURE=$(echo "$SPARKLE_PRIVATE_KEY" | "$SIGN_TOOL" build/TGPro.dmg)
-            DMG_SIZE=$(stat -f%z build/TGPro.dmg)
-            VERSION=$(grep 'AppVersionStrSmall' Telegram/build/version 2>/dev/null | awk '{print $2}' || echo "0.0.0")
-
-            cat > appcast.xml << APPCAST_EOF
+          if [ ! -x "$SIGN_TOOL" ]; then
+            echo "sign_update not found at $SIGN_TOOL, skipping appcast"
+            exit 0
+          fi
+          SIGNATURE=$(echo "$SPARKLE_PRIVATE_KEY" | "$SIGN_TOOL" build/TGPro.dmg)
+          DMG_SIZE=$(stat -f%z build/TGPro.dmg)
+          VERSION=$(grep 'AppVersionStrSmall' Telegram/build/version 2>/dev/null | awk '{print $2}' || echo "0.0.0")
+          PUBDATE=$(date -R)
+          cat > appcast.xml << APPCAST_EOF
           <?xml version="1.0" encoding="utf-8"?>
           <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
             <channel>
@@ -223,7 +229,7 @@ jobs:
                 <title>TGPro ${VERSION}</title>
                 <sparkle:version>${VERSION}</sparkle:version>
                 <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
-                <pubDate>$(date -R)</pubDate>
+                <pubDate>${PUBDATE}</pubDate>
                 <enclosure
                   url="https://github.com/tgprodev/tg_pro_build/releases/download/nightly/TGPro.dmg"
                   ${SIGNATURE}
@@ -233,13 +239,11 @@ jobs:
             </channel>
           </rss>
           APPCAST_EOF
-
-            git config user.name "tgpro-ci"
-            git config user.email "ci@tgpro.dev"
-            git add appcast.xml
-            git commit -m "ci: update appcast.xml [skip ci]" || true
-            git push origin dev || true
-          fi
+          git config user.name "tgpro-ci"
+          git config user.email "ci@tgpro.dev"
+          git add appcast.xml
+          git commit -m "ci: update appcast.xml [skip ci]" || true
+          git push origin dev || true
 
       - name: Publish Release.
         run: |
