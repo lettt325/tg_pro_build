@@ -61,9 +61,16 @@ jobs:
         run: |
           SPARKLE_VER="2.9.2"
           curl -sL "https://github.com/sparkle-project/Sparkle/releases/download/${SPARKLE_VER}/Sparkle-for-Swift-Package-Manager.zip" -o sparkle.zip
-          mkdir -p $LibrariesPath/local/Sparkle
-          unzip -q sparkle.zip -d $LibrariesPath/local/Sparkle
-          echo "SPARKLE_PATH=$LibrariesPath/local/Sparkle" >> $GITHUB_ENV
+          SPARKLE_EXTRACT=$LibrariesPath/local/sparkle-extract
+          mkdir -p $SPARKLE_EXTRACT
+          unzip -q sparkle.zip -d $SPARKLE_EXTRACT
+
+          SPARKLE_FW=$LibrariesPath/local/Sparkle
+          mkdir -p $SPARKLE_FW
+          cp -a $SPARKLE_EXTRACT/Sparkle.xcframework/macos-arm64_x86_64/Sparkle.framework $SPARKLE_FW/
+
+          echo "SPARKLE_PATH=$SPARKLE_FW" >> $GITHUB_ENV
+          echo "SPARKLE_BIN=$SPARKLE_EXTRACT/bin" >> $GITHUB_ENV
 
       - name: RNNoise cache.
         id: cache-rnnoise
@@ -211,7 +218,7 @@ jobs:
             echo "SPARKLE_ED25519_PRIVATE_KEY not set, skipping appcast"
             exit 0
           fi
-          SIGN_TOOL="$SPARKLE_PATH/Sparkle.framework/Versions/B/Resources/sign_update"
+          SIGN_TOOL="$SPARKLE_BIN/sign_update"
           if [ ! -x "$SIGN_TOOL" ]; then
             echo "sign_update not found at $SIGN_TOOL, skipping appcast"
             exit 0
