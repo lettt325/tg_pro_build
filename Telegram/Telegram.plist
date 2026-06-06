@@ -79,5 +79,15 @@
 	<string>NSApplication</string>
 	<key>NSSupportsAutomaticGraphicsSwitching</key>
 	<true/>
+	<key>SUFeedURL</key>
+	<string>https://raw.githubusercontent.com/tgprodev/tg_pro_build/dev/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>@SPARKLE_ED25519_PUBLIC_KEY@</string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUAutomaticallyUpdate</key>
+	<true/>
+	<key>SUAllowsAutomaticUpdates</key>
+	<true/>
 </dict>
 </plist>

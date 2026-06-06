@@ -93,6 +93,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/cached_webview_availability.h"
 #include "styles/style_window.h"
 
+#ifdef Q_OS_MAC
+#include "platform/mac/sparkle_mac.h"
+#endif // Q_OS_MAC
+
 #include <QtCore/QStandardPaths>
 #include <QtCore/QMimeDatabase>
 #include <QtGui/QGuiApplication>
@@ -380,6 +384,10 @@ void Application::run() {
 	}, _lifetime);
 
 	DEBUG_LOG(("Application Info: window created..."));
+
+#ifdef Q_OS_MAC
+	Platform::InitSparkle();
+#endif // Q_OS_MAC
 
 	startDomain();
 	startTray();

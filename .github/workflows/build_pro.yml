@@ -6,6 +6,7 @@ on:
     paths-ignore:
       - 'docs/**'
       - '**.md'
+      - 'appcast.xml'
       - 'changelog.txt'
       - 'LEGAL'
       - 'LICENSE'
@@ -55,6 +56,14 @@ jobs:
 
           echo "RNNOISE=`curl -sSL --header 'Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' https://api.github.com/repos/xiph/rnnoise/git/refs/heads/master | jq -r .object.sha`" >> $GITHUB_ENV
           echo "WEBRTC=`curl -sSL --header 'Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' https://api.github.com/repos/desktop-app/tg_owt/git/refs/heads/master | jq -r .object.sha`" >> $GITHUB_ENV
+
+      - name: Download Sparkle.
+        run: |
+          SPARKLE_VER="2.7.5"
+          curl -sL "https://github.com/sparkle-project/Sparkle/releases/download/${SPARKLE_VER}/Sparkle-for-Swift-Package-Manager.zip" -o sparkle.zip
+          mkdir -p $LibrariesPath/local/Sparkle
+          unzip -q sparkle.zip -d $LibrariesPath/local/Sparkle
+          echo "SPARKLE_PATH=$LibrariesPath/local/Sparkle" >> $GITHUB_ENV
 
       - name: RNNoise cache.
         id: cache-rnnoise
@@ -153,6 +162,7 @@ jobs:
           CCACHE_SLOPPINESS: include_file_mtime,include_file_ctime,time_macros,pch_defines,file_stat_matches
           CCACHE_COMPILERCHECK: content
           CCACHE_NOHASHDIR: "true"
+          SPARKLE_ED25519_PUBLIC_KEY: ${{ secrets.SPARKLE_ED25519_PUBLIC_KEY }}
         run: |
           cd $REPO_NAME
           export CMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH$(find $LibrariesPath/local -mindepth 1 -maxdepth 1 -type d -exec printf ':%s' {} +)"
@@ -167,7 +177,8 @@ jobs:
             -D TDESKTOP_API_ID=14565251 \
             -D TDESKTOP_API_HASH=9952ccf3124c8fa7835d9b8e091dfb4a \
             -D DESKTOP_APP_DISABLE_AUTOUPDATE=ON \
-            -D DESKTOP_APP_DISABLE_CRASH_REPORTS=ON
+            -D DESKTOP_APP_DISABLE_CRASH_REPORTS=ON \
+            -D DESKTOP_APP_DISABLE_SPARKLE=OFF
 
           ninja -C build -j $(sysctl -n hw.logicalcpu)
 
@@ -190,6 +201,45 @@ jobs:
           mkdir -p dmg
           cp -R TGPro.app dmg/
           hdiutil create -volname "TG Pro" -srcfolder dmg -ov -format UDZO "TGPro.dmg"
+
+      - name: Generate Sparkle appcast.
+        if: ${{ secrets.SPARKLE_ED25519_PRIVATE_KEY != '' }}
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_ED25519_PRIVATE_KEY }}
+        run: |
+          cd $REPO_NAME
+          SIGN_TOOL="$SPARKLE_PATH/Sparkle.framework/Versions/B/Resources/sign_update"
+          if [ -x "$SIGN_TOOL" ] && [ -n "$SPARKLE_PRIVATE_KEY" ]; then
+            SIGNATURE=$(echo "$SPARKLE_PRIVATE_KEY" | "$SIGN_TOOL" build/TGPro.dmg)
+            DMG_SIZE=$(stat -f%z build/TGPro.dmg)
+            VERSION=$(grep 'AppVersionStrSmall' Telegram/build/version 2>/dev/null | awk '{print $2}' || echo "0.0.0")
+
+            cat > appcast.xml << APPCAST_EOF
+          <?xml version="1.0" encoding="utf-8"?>
+          <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+            <channel>
+              <title>TGPro Updates</title>
+              <item>
+                <title>TGPro ${VERSION}</title>
+                <sparkle:version>${VERSION}</sparkle:version>
+                <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
+                <pubDate>$(date -R)</pubDate>
+                <enclosure
+                  url="https://github.com/tgprodev/tg_pro_build/releases/download/nightly/TGPro.dmg"
+                  ${SIGNATURE}
+                  length="${DMG_SIZE}"
+                  type="application/octet-stream" />
+              </item>
+            </channel>
+          </rss>
+          APPCAST_EOF
+
+            git config user.name "tgpro-ci"
+            git config user.email "ci@tgpro.dev"
+            git add appcast.xml
+            git commit -m "ci: update appcast.xml [skip ci]" || true
+            git push origin dev || true
+          fi
 
       - name: Publish Release.
         run: |

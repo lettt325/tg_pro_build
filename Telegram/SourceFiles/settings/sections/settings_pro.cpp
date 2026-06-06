@@ -10,9 +10,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_common_session.h"
 #include "settings/settings_builder.h"
 #include "settings/sections/settings_main.h"
+#include "settings/pro/pro_settings_storage.h"
 #include "boxes/peer_list_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "data/data_peer.h"
+#include "data/data_session.h"
 #include "data/data_thread.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
@@ -27,31 +29,36 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_menu_icons.h"
 #include "styles/style_settings.h"
 
+#ifdef Q_OS_MAC
+#include "platform/mac/sparkle_mac.h"
+#endif // Q_OS_MAC
+
 namespace Settings {
 namespace {
 
 using namespace Builder;
 
 struct ProState {
+	std::unique_ptr<ProSettings::Storage> storage;
 	base::flat_set<not_null<PeerData*>> exceptions;
 	rpl::variable<int> exceptionsCount = 0;
-	rpl::variable<std::vector<QString>> weakWords = std::vector<QString>{
-		u"ну"_q,
-		u"типа"_q,
-		u"как бы"_q,
-		u"вообще"_q,
-		u"короче"_q,
-		u"блин"_q,
-		u"просто"_q,
-		u"реально"_q,
-		u"кстати"_q,
-		u"в принципе"_q,
-		u"по сути"_q,
-		u"наверное"_q,
-		u"может быть"_q,
-		u"так сказать"_q,
-	};
+	rpl::variable<std::vector<QString>> weakWords;
 };
+
+void InitProState(ProState *state, not_null<Main::Session*> session) {
+	state->storage = std::make_unique<ProSettings::Storage>(session);
+
+	state->weakWords = state->storage->weakWords();
+
+	for (const auto &id : state->storage->exceptionPeerIds()) {
+		const auto peerId = PeerId(id);
+		if (peerId) {
+			const auto peer = session->data().peer(peerId);
+			state->exceptions.emplace(peer);
+		}
+	}
+	state->exceptionsCount = int(state->exceptions.size());
+}
 
 class ProExceptionsController final : public PeerListController {
 public:
@@ -102,6 +109,7 @@ void ProExceptionsController::rowRightActionClicked(
 	const auto peer = row->peer();
 	_state->exceptions.remove(peer);
 	_state->exceptionsCount = int(_state->exceptions.size());
+	_state->storage->removeException(peer->id.value);
 	delegate()->peerListRemoveRow(row);
 	delegate()->peerListRefreshRows();
 }
@@ -111,6 +119,7 @@ void ProExceptionsController::addPeer(not_null<PeerData*> peer) {
 		return;
 	}
 	_state->exceptionsCount = int(_state->exceptions.size());
+	_state->storage->addException(peer->id.value);
 	delegate()->peerListAppendRow(createRow(peer));
 	delegate()->peerListRefreshRows();
 }
@@ -132,9 +141,17 @@ void BuildSaveDeletedSection(SectionBuilder &builder, ProState *state) {
 		.id = u"pro/save_deleted"_q,
 		.title = rpl::single(u"Save deleted messages"_q),
 		.st = &st::settingsButtonNoIcon,
-		.toggled = rpl::single(false),
+		.toggled = rpl::single(
+			state ? state->storage->saveDeletedEnabled() : false),
 		.keywords = { u"deleted"_q, u"messages"_q, u"save"_q },
 	});
+
+	if (toggle && state) {
+		toggle->toggledChanges(
+		) | rpl::on_next([=](bool enabled) {
+			state->storage->setSaveDeletedEnabled(enabled);
+		}, toggle->lifetime());
+	}
 
 	builder.scope([&] {
 		struct ExceptionsState {
@@ -253,6 +270,8 @@ void ShowEditWeakWordsBox(
 								word),
 							updated.end());
 						state->weakWords = std::move(updated);
+						state->storage->setWeakWords(
+							state->weakWords.current());
 						(*rebuild)();
 					});
 					(*menu)->popup(QCursor::pos());
@@ -277,6 +296,7 @@ void ShowEditWeakWordsBox(
 			}
 			updated.push_back(text);
 			state->weakWords = std::move(updated);
+			state->storage->setWeakWords(state->weakWords.current());
 			field->setText(QString());
 			(*rebuild)();
 		};
@@ -301,9 +321,17 @@ void BuildWeakWordsSection(SectionBuilder &builder, ProState *state) {
 		.id = u"pro/weak_words"_q,
 		.title = rpl::single(u"Filter weak words in messages"_q),
 		.st = &st::settingsButtonNoIcon,
-		.toggled = rpl::single(false),
+		.toggled = rpl::single(
+			state ? state->storage->weakWordsFilterEnabled() : false),
 		.keywords = { u"weak"_q, u"words"_q, u"filter"_q, u"filler"_q },
 	});
+
+	if (toggle && state) {
+		toggle->toggledChanges(
+		) | rpl::on_next([=](bool enabled) {
+			state->storage->setWeakWordsFilterEnabled(enabled);
+		}, toggle->lifetime());
+	}
 
 	builder.scope([&] {
 		builder.addButton({
@@ -328,6 +356,24 @@ void BuildWeakWordsSection(SectionBuilder &builder, ProState *state) {
 	builder.addDividerText(rpl::single(u"Messages containing filler or weak words cannot be sent until rephrased. Edit the word list to customize which words are flagged."_q));
 }
 
+void BuildUpdatesSection(SectionBuilder &builder) {
+	builder.addDivider();
+	builder.addSkip();
+	builder.addSubsectionTitle(rpl::single(u"Updates"_q));
+
+	builder.addButton({
+		.id = u"pro/check_updates"_q,
+		.title = rpl::single(u"Check for Updates"_q),
+		.icon = { &st::menuIconRestore },
+#ifdef Q_OS_MAC
+		.onClick = [] { Platform::CheckForUpdates(); },
+#endif
+		.keywords = { u"update"_q, u"check"_q, u"sparkle"_q },
+	});
+
+	builder.addSkip();
+}
+
 class ProSettings : public Section<ProSettings> {
 public:
 	ProSettings(
@@ -348,12 +394,16 @@ const auto kMeta = BuildHelper({
 	.icon = &st::menuIconSettings,
 }, [](SectionBuilder &builder) {
 	const auto container = builder.container();
+	const auto session = builder.session();
 	const auto state = container
 		? container->lifetime().make_state<ProState>()
 		: nullptr;
+	if (state) {
+		InitProState(state, session);
+	}
 	BuildSaveDeletedSection(builder, state);
 	BuildWeakWordsSection(builder, state);
-	builder.addSkip();
+	BuildUpdatesSection(builder);
 });
 
 const SectionBuildMethod kProSettingsSection = kMeta.build;

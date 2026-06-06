@@ -1566,6 +1566,8 @@ PRIVATE
     platform/mac/notifications_manager_mac.h
     platform/mac/overlay_widget_mac.h
     platform/mac/overlay_widget_mac.mm
+    platform/mac/sparkle_mac.h
+    platform/mac/sparkle_mac.mm
     platform/mac/specific_mac.mm
     platform/mac/specific_mac.h
     platform/mac/specific_mac_p.mm
@@ -1682,6 +1684,8 @@ PRIVATE
     settings/sections/settings_advanced.h
     settings/sections/settings_pro.cpp
     settings/sections/settings_pro.h
+    settings/pro/pro_settings_storage.cpp
+    settings/pro/pro_settings_storage.h
     settings/sections/settings_chat.cpp
     settings/sections/settings_chat.h
     settings/sections/settings_blocked_peers.cpp
@@ -2165,6 +2169,39 @@ else()
     endif()
     set(bundle_entitlements "Telegram.entitlements")
     set(output_name "TGPro")
+endif()
+
+if (DEFINED ENV{SPARKLE_ED25519_PUBLIC_KEY})
+    set(SPARKLE_ED25519_PUBLIC_KEY "$ENV{SPARKLE_ED25519_PUBLIC_KEY}")
+elseif (NOT DEFINED SPARKLE_ED25519_PUBLIC_KEY)
+    set(SPARKLE_ED25519_PUBLIC_KEY "")
+endif()
+
+option(DESKTOP_APP_DISABLE_SPARKLE "Disable Sparkle auto-update framework" ON)
+
+if (NOT DESKTOP_APP_DISABLE_SPARKLE)
+    if (DEFINED ENV{SPARKLE_PATH})
+        set(SPARKLE_DIR "$ENV{SPARKLE_PATH}")
+    else()
+        set(SPARKLE_DIR "${libs_loc}/Sparkle")
+    endif()
+
+    target_compile_definitions(Telegram PRIVATE TDESKTOP_USE_SPARKLE)
+
+    target_link_options(Telegram PRIVATE
+        -F${SPARKLE_DIR}
+    )
+    target_link_libraries(Telegram PRIVATE
+        "-framework Sparkle"
+    )
+
+    add_custom_command(TARGET Telegram POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory
+            $<TARGET_FILE_DIR:Telegram>/../Frameworks
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${SPARKLE_DIR}/Sparkle.framework"
+            "$<TARGET_FILE_DIR:Telegram>/../Frameworks/Sparkle.framework"
+    )
 endif()
 
 if (CMAKE_GENERATOR STREQUAL Xcode)
