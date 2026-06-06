@@ -151,7 +151,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: /Users/runner/ccache.tar
-          key: ${{ runner.OS }}-ccache-v3
+          key: ${{ runner.OS }}-ccache-${{ github.run_id }}
           restore-keys: |
             ${{ runner.OS }}-ccache-
 
