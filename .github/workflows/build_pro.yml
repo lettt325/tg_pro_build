@@ -127,14 +127,17 @@ jobs:
             ${{ runner.OS }}-build-
 
       - name: Restore build.
+        id: restore-build
         run: |
           if [ -f /Users/runner/build.tar.gz ]; then
             rm -rf $REPO_NAME/build
             mkdir -p $REPO_NAME/build
             tar -xzf /Users/runner/build.tar.gz -C $REPO_NAME/build
             echo "build dir restored"
+            echo "BUILD_RESTORED=1" >> $GITHUB_ENV
           else
             echo "no build dir cache"
+            echo "BUILD_RESTORED=0" >> $GITHUB_ENV
           fi
 
       - name: Fix git timestamps.
@@ -183,15 +186,19 @@ jobs:
           export CMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH$(find $LibrariesPath/local -mindepth 1 -maxdepth 1 -type d -exec printf ':%s' {} +)"
           export PATH="/opt/homebrew/opt/ccache/libexec:$PATH"
 
-          cmake -Bbuild . \
-            -D CMAKE_C_COMPILER_LAUNCHER=ccache \
-            -D CMAKE_CXX_COMPILER_LAUNCHER=ccache \
-            -D CMAKE_C_FLAGS_INIT="-g0 -O0" \
-            -D CMAKE_CXX_FLAGS_INIT="-g0 -O0" \
-            -D TDESKTOP_API_ID=14565251 \
-            -D TDESKTOP_API_HASH=9952ccf3124c8fa7835d9b8e091dfb4a \
-            -D DESKTOP_APP_DISABLE_AUTOUPDATE=ON \
-            -D DESKTOP_APP_DISABLE_CRASH_REPORTS=ON
+          if [ "$BUILD_RESTORED" = "1" ]; then
+            echo "Build dir restored, running incremental build..."
+          else
+            cmake -Bbuild . \
+              -D CMAKE_C_COMPILER_LAUNCHER=ccache \
+              -D CMAKE_CXX_COMPILER_LAUNCHER=ccache \
+              -D CMAKE_C_FLAGS_INIT="-g0 -O0" \
+              -D CMAKE_CXX_FLAGS_INIT="-g0 -O0" \
+              -D TDESKTOP_API_ID=14565251 \
+              -D TDESKTOP_API_HASH=9952ccf3124c8fa7835d9b8e091dfb4a \
+              -D DESKTOP_APP_DISABLE_AUTOUPDATE=ON \
+              -D DESKTOP_APP_DISABLE_CRASH_REPORTS=ON
+          fi
 
           ninja -C build -j 6
 
