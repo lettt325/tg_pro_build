@@ -143,7 +143,8 @@ jobs:
       - name: Fix git timestamps.
         run: |
           cd $REPO_NAME
-          git ls-files -z | xargs -0 touch -d "$(git log -1 --format=%cI)" 2>/dev/null || true
+          TSTAMP=$(git log -1 --format=%cd --date=format:%Y%m%d%H%M.%S)
+          git ls-files -z | xargs -0 touch -t "$TSTAMP" 2>/dev/null || true
 
       - name: ccache cache.
         id: cache-ccache
