@@ -164,7 +164,8 @@ jobs:
             -D CMAKE_C_COMPILER_LAUNCHER=ccache \
             -D CMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -D CMAKE_C_FLAGS_INIT="-g0 -O0" \
-            -D CMAKE_CXX_FLAGS_INIT="-g0 -O0" \
+            -D CMAKE_CXX_FLAGS_INIT="-g0 -O0 -Xclang -fno-pch-timestamp" \
+            -D CMAKE_OBJCXX_FLAGS_INIT="-g0 -O0 -Xclang -fno-pch-timestamp" \
             -D TDESKTOP_API_ID=14565251 \
             -D TDESKTOP_API_HASH=9952ccf3124c8fa7835d9b8e091dfb4a \
             -D DESKTOP_APP_DISABLE_AUTOUPDATE=ON \
