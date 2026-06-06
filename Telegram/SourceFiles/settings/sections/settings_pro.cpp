@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/fields/input_field.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/wrap/vertical_layout.h"
 #include "window/window_session_controller.h"
 #include "styles/style_layers.h"
@@ -52,9 +53,77 @@ struct ProState {
 	};
 };
 
+class ProExceptionsController final : public PeerListController {
+public:
+	ProExceptionsController(
+		not_null<Main::Session*> session,
+		ProState *state);
+
+	Main::Session &session() const override;
+	void prepare() override;
+	void rowClicked(not_null<PeerListRow*> row) override;
+	void rowRightActionClicked(not_null<PeerListRow*> row) override;
+	void loadMoreRows() override {}
+
+	void addPeer(not_null<PeerData*> peer);
+
+private:
+	[[nodiscard]] std::unique_ptr<PeerListRow> createRow(
+		not_null<PeerData*> peer) const;
+
+	const not_null<Main::Session*> _session;
+	ProState * const _state;
+
+};
+
+ProExceptionsController::ProExceptionsController(
+	not_null<Main::Session*> session,
+	ProState *state)
+: _session(session)
+, _state(state) {
+}
+
+Main::Session &ProExceptionsController::session() const {
+	return *_session;
+}
+
+void ProExceptionsController::prepare() {
+	for (const auto &peer : _state->exceptions) {
+		delegate()->peerListAppendRow(createRow(peer));
+	}
+	delegate()->peerListRefreshRows();
+}
+
+void ProExceptionsController::rowClicked(not_null<PeerListRow*> row) {
+}
+
+void ProExceptionsController::rowRightActionClicked(
+		not_null<PeerListRow*> row) {
+	const auto peer = row->peer();
+	_state->exceptions.remove(peer);
+	_state->exceptionsCount = int(_state->exceptions.size());
+	delegate()->peerListRemoveRow(row);
+	delegate()->peerListRefreshRows();
+}
+
+void ProExceptionsController::addPeer(not_null<PeerData*> peer) {
+	if (!_state->exceptions.emplace(peer).second) {
+		return;
+	}
+	_state->exceptionsCount = int(_state->exceptions.size());
+	delegate()->peerListAppendRow(createRow(peer));
+	delegate()->peerListRefreshRows();
+}
+
+std::unique_ptr<PeerListRow> ProExceptionsController::createRow(
+		not_null<PeerData*> peer) const {
+	auto row = std::make_unique<PeerListRowWithLink>(peer);
+	row->setActionLink(u"Remove"_q);
+	return row;
+}
+
 void BuildSaveDeletedSection(SectionBuilder &builder, ProState *state) {
 	const auto controller = builder.controller();
-	const auto session = builder.session();
 
 	builder.addSkip();
 	builder.addSubsectionTitle(rpl::single(u"Deleted Messages"_q));
@@ -68,60 +137,72 @@ void BuildSaveDeletedSection(SectionBuilder &builder, ProState *state) {
 	});
 
 	builder.scope([&] {
-		builder.addButton({
-			.id = u"pro/save_deleted/exceptions"_q,
-			.title = rpl::single(u"Exceptions"_q),
-			.st = &st::settingsButtonNoIcon,
-			.label = state
-				? state->exceptionsCount.value(
-				) | rpl::map([](int count) {
-					return count
-						? QString::number(count)
-						: QString()
-					;
-				}) | rpl::type_erased
-				: rpl::single(QString()) | rpl::type_erased,
-			.onClick = (controller && state) ? Fn<void()>([=] {
-				auto pickerController = std::make_unique<
-					ChooseRecipientBoxController>(
-					ChooseRecipientArgs{
-						.session = &controller->session(),
-						.callback = [=](not_null<Data::Thread*> thread) {
-							const auto peer = thread->peer();
-							if (state->exceptions.emplace(peer).second) {
-								state->exceptionsCount = int(
-									state->exceptions.size());
-							}
-						},
-						.filter = [=](not_null<Data::Thread*> thread) {
-							return !state->exceptions.contains(
-								thread->peer());
-						},
-					});
-				controller->show(Box<PeerListBox>(
-					std::move(pickerController),
-					[](not_null<PeerListBox*> box) {
-						box->addButton(
-							tr::lng_cancel(),
-							[=] { box->closeBox(); });
-					}));
-			}) : Fn<void()>(nullptr),
-			.keywords = { u"exceptions"_q, u"chats"_q, u"deleted"_q },
-		});
+		struct ExceptionsState {
+			std::unique_ptr<ProExceptionsController> controller;
+			std::unique_ptr<PeerListContentDelegateSimple> delegate;
+		};
 
-		builder.addButton({
-			.id = u"pro/save_deleted/clear"_q,
-			.title = rpl::single(u"Clear all exceptions"_q),
-			.st = &st::settingsButtonNoIcon,
-			.onClick = (state) ? Fn<void()>([=] {
-				state->exceptions.clear();
-				state->exceptionsCount = 0;
-			}) : Fn<void()>(nullptr),
-			.shown = state
-				? state->exceptionsCount.value(
-				) | rpl::map(rpl::mappers::_1 > 0) | rpl::type_erased
-				: rpl::single(false) | rpl::type_erased,
-		});
+		const auto inner = builder.container();
+		ProExceptionsController *exceptionsController = nullptr;
+
+		if (inner && controller && state) {
+			auto listController = std::make_unique<ProExceptionsController>(
+				&controller->session(),
+				state);
+			listController->setStyleOverrides(&st::settingsBlockedList);
+			exceptionsController = listController.get();
+
+			builder.addButton({
+				.id = u"pro/save_deleted/add_exception"_q,
+				.title = rpl::single(u"Add exception"_q),
+				.icon = { &st::menuIconInviteSettings },
+				.onClick = [=] {
+					auto pickerController = std::make_unique<
+						ChooseRecipientBoxController>(
+						ChooseRecipientArgs{
+							.session = &controller->session(),
+							.callback = [=](
+									not_null<Data::Thread*> thread) {
+								exceptionsController->addPeer(
+									thread->peer());
+							},
+							.filter = [=](
+									not_null<Data::Thread*> thread) {
+								return !state->exceptions.contains(
+									thread->peer());
+							},
+						});
+					controller->show(Box<PeerListBox>(
+						std::move(pickerController),
+						[](not_null<PeerListBox*> box) {
+							box->addButton(
+								tr::lng_cancel(),
+								[=] { box->closeBox(); });
+						}));
+				},
+				.keywords = { u"exceptions"_q, u"add"_q, u"chats"_q },
+			});
+
+			const auto content = inner->add(
+				object_ptr<PeerListContent>(
+					inner,
+					listController.get()));
+
+			const auto es = content->lifetime().make_state<
+				ExceptionsState>();
+			es->controller = std::move(listController);
+			es->delegate = std::make_unique<
+				PeerListContentDelegateSimple>();
+			es->delegate->setContent(content);
+			es->controller->setDelegate(es->delegate.get());
+		} else {
+			builder.addButton({
+				.id = u"pro/save_deleted/add_exception"_q,
+				.title = rpl::single(u"Add exception"_q),
+				.icon = { &st::menuIconInviteSettings },
+				.keywords = { u"exceptions"_q, u"add"_q, u"chats"_q },
+			});
+		}
 	}, toggle ? toggle->toggledValue() : nullptr);
 
 	builder.addDividerText(rpl::single(u"When enabled, messages deleted by other users will be preserved locally. Use Exceptions to exclude specific chats."_q));
@@ -145,6 +226,9 @@ void ShowEditWeakWordsBox(
 		const auto wordsWrap = box->addRow(
 			object_ptr<Ui::VerticalLayout>(box));
 
+		const auto menu = box->lifetime().make_state<
+			base::unique_qptr<Ui::PopupMenu>>();
+
 		const auto rebuild = box->lifetime().make_state<Fn<void()>>();
 		*rebuild = [=] {
 			while (wordsWrap->count()) {
@@ -159,12 +243,19 @@ void ShowEditWeakWordsBox(
 						rpl::single(word),
 						st::settingsButtonNoIcon));
 				row->addClickHandler([=] {
-					auto updated = state->weakWords.current();
-					if (i < int(updated.size())) {
-						updated.erase(updated.begin() + i);
+					*menu = base::make_unique_q<Ui::PopupMenu>(row);
+					(*menu)->addAction(u"Remove"_q, [=] {
+						auto updated = state->weakWords.current();
+						updated.erase(
+							std::remove(
+								updated.begin(),
+								updated.end(),
+								word),
+							updated.end());
 						state->weakWords = std::move(updated);
-					}
-					(*rebuild)();
+						(*rebuild)();
+					});
+					(*menu)->popup(QCursor::pos());
 				});
 			}
 			wordsWrap->resizeToWidth(wordsWrap->width());
