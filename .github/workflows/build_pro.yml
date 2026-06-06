@@ -59,7 +59,7 @@ jobs:
 
       - name: Download Sparkle.
         run: |
-          SPARKLE_VER="2.7.5"
+          SPARKLE_VER="2.9.2"
           curl -sL "https://github.com/sparkle-project/Sparkle/releases/download/${SPARKLE_VER}/Sparkle-for-Swift-Package-Manager.zip" -o sparkle.zip
           mkdir -p $LibrariesPath/local/Sparkle
           unzip -q sparkle.zip -d $LibrariesPath/local/Sparkle
