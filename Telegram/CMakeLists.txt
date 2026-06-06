@@ -2186,7 +2186,10 @@ if (NOT DESKTOP_APP_DISABLE_SPARKLE)
         set(SPARKLE_DIR "${libs_loc}/Sparkle")
     endif()
 
-    target_compile_definitions(Telegram PRIVATE TDESKTOP_USE_SPARKLE)
+    set_source_files_properties(
+        ${src_loc}/platform/mac/sparkle_mac.mm
+        PROPERTIES COMPILE_DEFINITIONS TDESKTOP_USE_SPARKLE
+    )
 
     target_link_options(Telegram PRIVATE
         -F${SPARKLE_DIR}
