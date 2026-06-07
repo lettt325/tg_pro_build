@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/emoji_interactions.h"
 #include "core/click_handler_types.h"
 #include "main/main_session.h"
+#include "settings/pro/pro_settings_storage.h"
 #include "lottie/lottie_icon.h"
 #include "data/data_channel.h"
 #include "data/data_session.h"
@@ -446,6 +447,9 @@ void BottomInfo::layout() {
 }
 
 void BottomInfo::layoutDateText() {
+	const auto deleted = (_data.flags & Data::Flag::DeletedByOther)
+		? QString::fromUtf8("\xf0\x9f\x97\x91 ")
+		: QString();
 	const auto edited = (_data.flags & Data::Flag::Edited)
 		? (tr::lng_edited(tr::now) + ' ')
 		: (_data.flags & Data::Flag::EstimateDate)
@@ -455,7 +459,7 @@ void BottomInfo::layoutDateText() {
 		: QString();
 	const auto author = _data.author;
 	const auto prefix = !author.isEmpty() ? u", "_q : QString();
-	const auto date = edited + ((_data.flags & Data::Flag::ForwardedDate)
+	const auto date = deleted + edited + ((_data.flags & Data::Flag::ForwardedDate)
 		? Ui::FormatDateTimeSavedFrom(_data.date)
 		: QLocale().toString(_data.date.time(), QLocale::ShortFormat));
 	const auto afterAuthor = prefix + date;
@@ -633,6 +637,14 @@ BottomInfo::Data BottomInfoDataFromMessage(not_null<Message*> message) {
 			if (!msgsigned->isAnonymousRank) {
 				result.author = msgsigned->author;
 			}
+		}
+	}
+	{
+		const auto &pro = item->history()->session().proStorage();
+		if (pro.isDeletedByOther(
+				item->history()->peer->id.value,
+				item->id.bare)) {
+			result.flags |= Flag::DeletedByOther;
 		}
 	}
 	if (message->displayedEditDate()) {

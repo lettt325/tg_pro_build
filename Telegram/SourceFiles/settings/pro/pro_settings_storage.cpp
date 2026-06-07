@@ -234,6 +234,16 @@ void Storage::setOverlayScreenName(const QString &name) {
 	save();
 }
 
+void Storage::addDeletedMessage(uint64 peerId, int64 msgId) {
+	_deletedMessages[peerId].emplace(msgId);
+	save();
+}
+
+bool Storage::isDeletedByOther(uint64 peerId, int64 msgId) const {
+	const auto i = _deletedMessages.find(peerId);
+	return i != _deletedMessages.end() && i->second.contains(msgId);
+}
+
 void Storage::showTypingOverlay(const QString &userName, uint64 peerId) {
 	if (!_typingOverlay) {
 		_typingOverlay = std::make_unique<ProOverlay::TypingOverlay>();
@@ -324,6 +334,20 @@ void Storage::load() {
 	_overlaySize = obj.value("overlaySize").toInt(1);
 	_overlayStyle = obj.value("overlayStyle").toInt(0);
 	_overlayScreenName = obj.value("overlayScreenName").toString();
+
+	_deletedMessages.clear();
+	const auto dm = obj.value("deletedMessages").toObject();
+	for (auto it = dm.begin(); it != dm.end(); ++it) {
+		const auto peer = static_cast<uint64>(it.key().toDouble());
+		if (!peer) continue;
+		auto &set = _deletedMessages[peer];
+		for (const auto &v : it.value().toArray()) {
+			const auto msg = static_cast<int64>(v.toDouble());
+			if (msg) {
+				set.emplace(msg);
+			}
+		}
+	}
 }
 
 void Storage::save() {
@@ -363,6 +387,18 @@ void Storage::save() {
 	obj["overlayStyle"] = _overlayStyle;
 	if (!_overlayScreenName.isEmpty()) {
 		obj["overlayScreenName"] = _overlayScreenName;
+	}
+
+	if (!_deletedMessages.empty()) {
+		auto dm = QJsonObject();
+		for (const auto &[peer, msgs] : _deletedMessages) {
+			auto arr = QJsonArray();
+			for (const auto &msg : msgs) {
+				arr.append(static_cast<double>(msg));
+			}
+			dm[QString::number(peer)] = arr;
+		}
+		obj["deletedMessages"] = dm;
 	}
 
 	_session->account().local().writePref<QByteArray>(

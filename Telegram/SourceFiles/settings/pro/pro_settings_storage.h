@@ -70,6 +70,9 @@ public:
 
 	void showTypingOverlay(const QString &userName, uint64 peerId);
 
+	void addDeletedMessage(uint64 peerId, int64 msgId);
+	[[nodiscard]] bool isDeletedByOther(uint64 peerId, int64 msgId) const;
+
 	void markPeerInteracted(uint64 peerId);
 	[[nodiscard]] bool consumePeerInteracted(uint64 peerId);
 	[[nodiscard]] bool hasAnyInteracted() const;
@@ -92,6 +95,8 @@ private:
 	bool _ghostInstantOnline = false;
 	std::vector<uint64> _ghostExceptionPeerIds;
 	base::flat_set<uint64> _ghostInteractedPeers;
+
+	base::flat_map<uint64, base::flat_set<int64>> _deletedMessages;
 
 	bool _overlayEnabled = false;
 	bool _overlayTypingEnabled = false;

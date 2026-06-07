@@ -85,6 +85,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "base/call_delayed.h"
 #include "base/random.h"
+#include "settings/pro/pro_settings_storage.h"
 #include "spellcheck/spellcheck_highlight_syntax.h"
 
 namespace Data {
@@ -2960,14 +2961,24 @@ void Session::processMessagesDeleted(
 		return;
 	}
 
+	auto &pro = _session->proStorage();
+	const auto saving = pro.saveDeletedEnabled()
+		&& !ranges::contains(pro.exceptionPeerIds(), peerId.value);
+
 	auto toDestroy = std::vector<not_null<HistoryItem*>>();
 	auto historiesToCheck = base::flat_set<not_null<History*>>();
 	for (const auto &messageId : data) {
 		const auto i = list ? list->find(messageId.v) : Messages::iterator();
 		if (list && i != list->end()) {
-			const auto history = i->second->history();
-			toDestroy.push_back(i->second);
+			const auto item = i->second;
+			const auto history = item->history();
 			historiesToCheck.emplace(history);
+			if (saving && !pro.isDeletedByOther(peerId.value, item->id.bare)) {
+				pro.addDeletedMessage(peerId.value, item->id.bare);
+				requestItemResize(item);
+			} else if (!saving) {
+				toDestroy.push_back(item);
+			}
 		} else if (affected) {
 			affected->unknownMessageDeleted(messageId.v);
 		}
@@ -2986,13 +2997,23 @@ void Session::processMessagesDeleted(
 }
 
 void Session::processNonChannelMessagesDeleted(const QVector<MTPint> &data) {
+	auto &pro = _session->proStorage();
+
 	auto toDestroy = std::vector<not_null<HistoryItem*>>();
 	auto historiesToCheck = base::flat_set<not_null<History*>>();
 	for (const auto &messageId : data) {
 		if (const auto item = nonChannelMessage(messageId.v)) {
 			const auto history = item->history();
-			toDestroy.push_back(item);
+			const auto pid = history->peer->id.value;
+			const auto saving = pro.saveDeletedEnabled()
+				&& !ranges::contains(pro.exceptionPeerIds(), pid);
 			historiesToCheck.emplace(history);
+			if (saving && !pro.isDeletedByOther(pid, item->id.bare)) {
+				pro.addDeletedMessage(pid, item->id.bare);
+				requestItemResize(item);
+			} else if (!saving) {
+				toDestroy.push_back(item);
+			}
 		}
 	}
 	if (!toDestroy.empty()) {
