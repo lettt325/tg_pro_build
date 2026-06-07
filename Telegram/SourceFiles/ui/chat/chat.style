@@ -350,6 +350,13 @@ historyPinInSelectedIcon: icon {{ "history_pin", msgInDateFgSelected }};
 historyPinOutIcon: icon {{ "history_pin", historyOutIconFg }};
 historyPinOutSelectedIcon: icon {{ "history_pin", historyOutIconFgSelected }};
 historyPinInvertedIcon: icon {{ "history_pin", historySendingInvertedIconFg }};
+historyTrashWidth: 20px;
+historyTrashTop: -15px;
+historyTrashInIcon: icon {{ "history_trash", msgInDateFg }};
+historyTrashInSelectedIcon: icon {{ "history_trash", msgInDateFgSelected }};
+historyTrashOutIcon: icon {{ "history_trash", historyOutIconFg }};
+historyTrashOutSelectedIcon: icon {{ "history_trash", historyOutIconFgSelected }};
+historyTrashInvertedIcon: icon {{ "history_trash", historySendingInvertedIconFg }};
 
 historyBotMenuSkip: 8px;
 historyBotMenuMaxWidth: 160px;

@@ -300,6 +300,17 @@ void BottomInfo::paint(
 			firstLineBottom + st::historyPinTop,
 			outerWidth);
 	}
+	if (_data.flags & Data::Flag::DeletedByOther) {
+		const auto &icon = inverted
+			? st->historyTrashInvertedIcon()
+			: stm->historyTrashIcon;
+		right -= st::historyTrashWidth;
+		icon.paint(
+			p,
+			right,
+			firstLineBottom + st::historyTrashTop,
+			outerWidth);
+	}
 	if (!_views.isEmpty()) {
 		const auto viewsWidth = _views.maxWidth();
 		right -= st::historyViewsSpace + viewsWidth;
@@ -447,9 +458,6 @@ void BottomInfo::layout() {
 }
 
 void BottomInfo::layoutDateText() {
-	const auto deleted = (_data.flags & Data::Flag::DeletedByOther)
-		? QString::fromUtf8("\xf0\x9f\x97\x91 ")
-		: QString();
 	const auto edited = (_data.flags & Data::Flag::Edited)
 		? (tr::lng_edited(tr::now) + ' ')
 		: (_data.flags & Data::Flag::EstimateDate)
@@ -459,7 +467,7 @@ void BottomInfo::layoutDateText() {
 		: QString();
 	const auto author = _data.author;
 	const auto prefix = !author.isEmpty() ? u", "_q : QString();
-	const auto date = deleted + edited + ((_data.flags & Data::Flag::ForwardedDate)
+	const auto date = edited + ((_data.flags & Data::Flag::ForwardedDate)
 		? Ui::FormatDateTimeSavedFrom(_data.date)
 		: QLocale().toString(_data.date.time(), QLocale::ShortFormat));
 	const auto afterAuthor = prefix + date;
@@ -562,6 +570,9 @@ QSize BottomInfo::countOptimalSize() {
 	}
 	if (_data.flags & Data::Flag::Pinned) {
 		width += st::historyPinWidth;
+	}
+	if (_data.flags & Data::Flag::DeletedByOther) {
+		width += st::historyTrashWidth;
 	}
 	_effectMaxWidth = countEffectMaxWidth();
 	width += _effectMaxWidth;
