@@ -7,9 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include <QString>
+
 namespace Platform {
 
 void InitSparkle();
 void CheckForUpdates();
+[[nodiscard]] QString SparkleLog();
 
 } // namespace Platform

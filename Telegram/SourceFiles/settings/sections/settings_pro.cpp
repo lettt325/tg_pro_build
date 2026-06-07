@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/fields/input_field.h"
+#include "ui/widgets/labels.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/wrap/vertical_layout.h"
 #include "window/window_session_controller.h"
@@ -356,7 +357,9 @@ void BuildWeakWordsSection(SectionBuilder &builder, ProState *state) {
 	builder.addDividerText(rpl::single(u"Messages containing filler or weak words cannot be sent until rephrased. Edit the word list to customize which words are flagged."_q));
 }
 
-void BuildUpdatesSection(SectionBuilder &builder) {
+void BuildUpdatesSection(
+		SectionBuilder &builder,
+		Window::SessionController *controller) {
 	builder.addDivider();
 	builder.addSkip();
 	builder.addSubsectionTitle(rpl::single(u"Updates"_q));
@@ -370,6 +373,28 @@ void BuildUpdatesSection(SectionBuilder &builder) {
 #endif
 		.keywords = { u"update"_q, u"check"_q, u"sparkle"_q },
 	});
+
+	if (controller) {
+		builder.addButton({
+			.id = u"pro/update_log"_q,
+			.title = rpl::single(u"Update Log"_q),
+			.st = &st::settingsButtonNoIcon,
+			.onClick = [=] {
+				controller->show(Box([](not_null<Ui::GenericBox*> box) {
+					box->setTitle(rpl::single(u"Sparkle Update Log"_q));
+					const auto log = Platform::SparkleLog();
+					box->addRow(object_ptr<Ui::FlatLabel>(
+						box,
+						rpl::single(log),
+						st::boxLabel));
+					box->addButton(tr::lng_close(), [=] {
+						box->closeBox();
+					});
+				}));
+			},
+			.keywords = { u"log"_q, u"update"_q, u"sparkle"_q },
+		});
+	}
 
 	builder.addSkip();
 }
@@ -403,7 +428,7 @@ const auto kMeta = BuildHelper({
 	}
 	BuildSaveDeletedSection(builder, state);
 	BuildWeakWordsSection(builder, state);
-	BuildUpdatesSection(builder);
+	BuildUpdatesSection(builder, builder.controller());
 });
 
 const SectionBuildMethod kProSettingsSection = kMeta.build;
