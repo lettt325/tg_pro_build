@@ -1057,10 +1057,12 @@ bool AddEditHistoryAction(
 	if (!item || !item->isRegular()) {
 		return false;
 	}
+	const auto edited = item->Get<HistoryMessageEdited>();
 	const auto &pro = item->history()->session().proStorage();
 	const auto pid = item->history()->peer->id.value;
 	const auto mid = item->id.bare;
-	if (!pro.hasEditHistory(pid, mid)) {
+	const auto hasHistory = pro.hasEditHistory(pid, mid);
+	if (!edited && !hasHistory) {
 		return false;
 	}
 	const auto controller = list->controller();
@@ -1069,37 +1071,46 @@ bool AddEditHistoryAction(
 	menu->addAction(u"Edit History"_q, crl::guard(controller, [=] {
 		const auto &pro = controller->session().proStorage();
 		const auto versions = pro.editHistory(peerId, msgId);
-		if (versions.empty()) {
-			return;
-		}
 		controller->show(Box([=](not_null<Ui::GenericBox*> box) {
 			box->setTitle(rpl::single(u"Edit History"_q));
 			const auto wrap = box->addRow(
 				object_ptr<Ui::VerticalLayout>(box));
-			for (auto i = 0; i < int(versions.size()); ++i) {
-				const auto &v = versions[i];
-				const auto isOriginal = (i == 0);
-				const auto header = isOriginal
-					? u"Original"_q
-					: u"Edit #%1"_q.arg(i);
-				const auto time = v.date
-					? QDateTime::fromSecsSinceEpoch(
-						v.date).toString(u"dd.MM.yyyy hh:mm"_q)
-					: QString();
+			if (versions.empty()) {
 				wrap->add(
 					object_ptr<Ui::FlatLabel>(
 						wrap,
-						rpl::single(header + u"  "_q + time),
+						rpl::single(
+							u"No edit history captured. Enable "
+							"\"Save edit history\" in Pro Settings "
+							"to track future edits."_q),
 						st::boxLabel),
 					QMargins(0, 8, 0, 0));
-				wrap->add(
-					object_ptr<Ui::FlatLabel>(
-						wrap,
-						rpl::single(v.text.isEmpty()
-							? u"[media]"_q
-							: v.text),
-						st::boxLabel),
-					QMargins(0, 2, 0, 0));
+			} else {
+				for (auto i = 0; i < int(versions.size()); ++i) {
+					const auto &v = versions[i];
+					const auto header = (i == 0)
+						? u"Original"_q
+						: u"Edit #%1"_q.arg(i);
+					const auto time = v.date
+						? QDateTime::fromSecsSinceEpoch(
+							v.date).toString(u"dd.MM.yyyy hh:mm"_q)
+						: QString();
+					wrap->add(
+						object_ptr<Ui::FlatLabel>(
+							wrap,
+							rpl::single(header + u"  "_q + time),
+							st::boxLabel),
+						QMargins(0, 8, 0, 0));
+					const auto text = wrap->add(
+						object_ptr<Ui::FlatLabel>(
+							wrap,
+							rpl::single(v.text.isEmpty()
+								? u"[media]"_q
+								: v.text),
+							st::boxLabel),
+						QMargins(0, 2, 0, 0));
+					text->setSelectable(true);
+				}
 			}
 			box->addButton(tr::lng_close(), [=] {
 				box->closeBox();
