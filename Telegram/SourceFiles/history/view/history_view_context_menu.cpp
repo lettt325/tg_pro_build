@@ -1086,18 +1086,12 @@ bool AddEditHistoryAction(
 					? QDateTime::fromSecsSinceEpoch(
 						v.date).toString(u"dd.MM.yyyy hh:mm"_q)
 					: QString();
-				const auto label = wrap->add(
+				wrap->add(
 					object_ptr<Ui::FlatLabel>(
 						wrap,
-						rpl::single(u"<b>%1</b>  %2"_q
-							.arg(header)
-							.arg(time)),
+						rpl::single(header + u"  "_q + time),
 						st::boxLabel),
 					QMargins(0, 8, 0, 0));
-				label->setRichText(
-					u"<b>%1</b>  <i>%2</i>"_q
-						.arg(header)
-						.arg(time));
 				wrap->add(
 					object_ptr<Ui::FlatLabel>(
 						wrap,
