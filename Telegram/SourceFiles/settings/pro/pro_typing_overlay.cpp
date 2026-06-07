@@ -25,9 +25,9 @@ TypingOverlay::TypingOverlay()
 , _hideTimer([=] { hideOverlay(); }) {
 	setWindowFlags(Qt::WindowFlags(Qt::FramelessWindowHint)
 		| Qt::WindowStaysOnTopHint
-		| Qt::BypassWindowManagerHint
 		| Qt::NoDropShadowWindowHint
-		| Qt::Tool);
+		| Qt::Tool
+		| Qt::WindowDoesNotAcceptFocus);
 	setAttribute(Qt::WA_MacAlwaysShowToolWindow);
 	setAttribute(Qt::WA_TranslucentBackground);
 	setAttribute(Qt::WA_ShowWithoutActivating);
@@ -49,7 +49,6 @@ void TypingOverlay::showTyping(
 	applySize(config.size);
 	updatePosition(config);
 	show();
-	raise();
 	update();
 	_hideTimer.callOnce(6000);
 }
