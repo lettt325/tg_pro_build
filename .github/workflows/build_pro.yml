@@ -133,14 +133,17 @@ jobs:
           cmake --build build
           cmake --install build
 
+      - name: Get ccache version.
+        run: echo "CCACHE_VER=$(ccache --version | head -1 | awk '{print $3}')" >> $GITHUB_ENV
+
       - name: ccache cache.
         id: cache-ccache
         uses: actions/cache@v5
         with:
           path: /Users/runner/ccache.tar
-          key: ${{ runner.OS }}-ccache-${{ github.run_id }}
+          key: ${{ runner.OS }}-ccache-${{ env.CCACHE_VER }}-${{ github.run_id }}
           restore-keys: |
-            ${{ runner.OS }}-ccache-
+            ${{ runner.OS }}-ccache-${{ env.CCACHE_VER }}-
 
       - name: Restore ccache.
         run: |
