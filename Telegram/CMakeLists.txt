@@ -1684,8 +1684,12 @@ PRIVATE
     settings/sections/settings_advanced.h
     settings/sections/settings_pro.cpp
     settings/sections/settings_pro.h
+    settings/sections/settings_pro_overlay.cpp
+    settings/sections/settings_pro_overlay.h
     settings/pro/pro_settings_storage.cpp
     settings/pro/pro_settings_storage.h
+    settings/pro/pro_typing_overlay.cpp
+    settings/pro/pro_typing_overlay.h
     settings/sections/settings_chat.cpp
     settings/sections/settings_chat.h
     settings/sections/settings_blocked_peers.cpp

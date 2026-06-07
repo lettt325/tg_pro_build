@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/pro/pro_settings_storage.h"
 
+#include "settings/pro/pro_typing_overlay.h"
 #include "main/main_session.h"
 #include "main/main_account.h"
 #include "storage/storage_account.h"
@@ -177,6 +178,31 @@ void Storage::clearGhostExceptions() {
 	save();
 }
 
+bool Storage::overlayEnabled() const {
+	return _overlayEnabled;
+}
+
+void Storage::setOverlayEnabled(bool enabled) {
+	_overlayEnabled = enabled;
+	save();
+}
+
+bool Storage::overlayTypingEnabled() const {
+	return _overlayTypingEnabled;
+}
+
+void Storage::setOverlayTypingEnabled(bool enabled) {
+	_overlayTypingEnabled = enabled;
+	save();
+}
+
+void Storage::showTypingOverlay(const QString &userName) {
+	if (!_typingOverlay) {
+		_typingOverlay = std::make_unique<ProOverlay::TypingOverlay>();
+	}
+	_typingOverlay->showTyping(userName);
+}
+
 bool Storage::isGhostActiveForPeer(uint64 peerId) const {
 	if (!_ghostEnabled) {
 		return false;
@@ -248,6 +274,9 @@ void Storage::load() {
 			_ghostExceptionPeerIds.push_back(id);
 		}
 	}
+
+	_overlayEnabled = obj.value("overlayEnabled").toBool();
+	_overlayTypingEnabled = obj.value("overlayTypingEnabled").toBool();
 }
 
 void Storage::save() {
@@ -279,6 +308,9 @@ void Storage::save() {
 		ghostExceptions.append(static_cast<double>(id));
 	}
 	obj["ghostExceptions"] = ghostExceptions;
+
+	obj["overlayEnabled"] = _overlayEnabled;
+	obj["overlayTypingEnabled"] = _overlayTypingEnabled;
 
 	_session->account().local().writePref<QByteArray>(
 		kPrefKey,

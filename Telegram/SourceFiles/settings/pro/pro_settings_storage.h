@@ -10,9 +10,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/basic_types.h"
 #include "base/flat_map.h"
 
+#include <memory>
 #include <vector>
 
 namespace Main { class Session; }
+namespace ProOverlay { class TypingOverlay; }
 
 namespace ProSettings {
 
@@ -52,6 +54,13 @@ public:
 
 	[[nodiscard]] bool isGhostActiveForPeer(uint64 peerId) const;
 
+	[[nodiscard]] bool overlayEnabled() const;
+	void setOverlayEnabled(bool enabled);
+	[[nodiscard]] bool overlayTypingEnabled() const;
+	void setOverlayTypingEnabled(bool enabled);
+
+	void showTypingOverlay(const QString &userName);
+
 	void markPeerInteracted(uint64 peerId);
 	[[nodiscard]] bool consumePeerInteracted(uint64 peerId);
 	[[nodiscard]] bool hasAnyInteracted() const;
@@ -74,6 +83,10 @@ private:
 	bool _ghostInstantOnline = false;
 	std::vector<uint64> _ghostExceptionPeerIds;
 	base::flat_set<uint64> _ghostInteractedPeers;
+
+	bool _overlayEnabled = false;
+	bool _overlayTypingEnabled = false;
+	std::unique_ptr<ProOverlay::TypingOverlay> _typingOverlay;
 };
 
 } // namespace ProSettings

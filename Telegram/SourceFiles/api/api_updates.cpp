@@ -1129,6 +1129,14 @@ void Updates::handleSendActionUpdate(
 		from->asUser(),
 		action,
 		when);
+
+	if (peer->isUser()
+		&& action.type() == mtpc_sendMessageTypingAction) {
+		auto &storage = session().proStorage();
+		if (storage.overlayEnabled() && storage.overlayTypingEnabled()) {
+			storage.showTypingOverlay(from->name());
+		}
+	}
 }
 
 void Updates::handleEmojiInteraction(

@@ -58,6 +58,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/sections/settings_premium.h"
 #include "settings/sections/settings_privacy_security.h"
 #include "settings/sections/settings_pro.h"
+#include "settings/sections/settings_pro_overlay.h"
 #include "settings/settings_scale_preview.h"
 #include "storage/localstorage.h"
 #include "ui/basic_click_handlers.h"
@@ -442,6 +443,13 @@ void BuildSectionButtons(SectionBuilder &builder) {
 		.targetSection = ProSettingsId(),
 		.icon = { &st::menuIconSettings },
 		.keywords = { u"pro"_q, u"tgpro"_q, u"custom"_q },
+	});
+
+	builder.addSectionButton({
+		.title = rpl::single(u"PRO Overlay"_q),
+		.targetSection = ProOverlaySettingsId(),
+		.icon = { &st::menuIconNewWindow },
+		.keywords = { u"overlay"_q, u"pro"_q, u"typing"_q },
 	});
 
 	builder.addSectionButton({
