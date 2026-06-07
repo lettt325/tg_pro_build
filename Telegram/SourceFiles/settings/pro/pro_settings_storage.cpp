@@ -198,11 +198,52 @@ void Storage::setOverlayTypingEnabled(bool enabled) {
 	save();
 }
 
-void Storage::showTypingOverlay(const QString &userName) {
+int Storage::overlayCorner() const {
+	return _overlayCorner;
+}
+
+void Storage::setOverlayCorner(int corner) {
+	_overlayCorner = corner;
+	save();
+}
+
+int Storage::overlaySize() const {
+	return _overlaySize;
+}
+
+void Storage::setOverlaySize(int size) {
+	_overlaySize = size;
+	save();
+}
+
+int Storage::overlayStyle() const {
+	return _overlayStyle;
+}
+
+void Storage::setOverlayStyle(int style) {
+	_overlayStyle = style;
+	save();
+}
+
+QString Storage::overlayScreenName() const {
+	return _overlayScreenName;
+}
+
+void Storage::setOverlayScreenName(const QString &name) {
+	_overlayScreenName = name;
+	save();
+}
+
+void Storage::showTypingOverlay(const QString &userName, uint64 peerId) {
 	if (!_typingOverlay) {
 		_typingOverlay = std::make_unique<ProOverlay::TypingOverlay>();
 	}
-	_typingOverlay->showTyping(userName);
+	_typingOverlay->showTyping(userName, peerId, _session, ProOverlay::Config{
+		.corner = static_cast<ProOverlay::Corner>(_overlayCorner),
+		.size = static_cast<ProOverlay::Size>(_overlaySize),
+		.style = static_cast<ProOverlay::Style>(_overlayStyle),
+		.screenName = _overlayScreenName,
+	});
 }
 
 bool Storage::isGhostActiveForPeer(uint64 peerId) const {
@@ -279,6 +320,10 @@ void Storage::load() {
 
 	_overlayEnabled = obj.value("overlayEnabled").toBool();
 	_overlayTypingEnabled = obj.value("overlayTypingEnabled").toBool();
+	_overlayCorner = obj.value("overlayCorner").toInt(1);
+	_overlaySize = obj.value("overlaySize").toInt(1);
+	_overlayStyle = obj.value("overlayStyle").toInt(0);
+	_overlayScreenName = obj.value("overlayScreenName").toString();
 }
 
 void Storage::save() {
@@ -313,6 +358,12 @@ void Storage::save() {
 
 	obj["overlayEnabled"] = _overlayEnabled;
 	obj["overlayTypingEnabled"] = _overlayTypingEnabled;
+	obj["overlayCorner"] = _overlayCorner;
+	obj["overlaySize"] = _overlaySize;
+	obj["overlayStyle"] = _overlayStyle;
+	if (!_overlayScreenName.isEmpty()) {
+		obj["overlayScreenName"] = _overlayScreenName;
+	}
 
 	_session->account().local().writePref<QByteArray>(
 		kPrefKey,

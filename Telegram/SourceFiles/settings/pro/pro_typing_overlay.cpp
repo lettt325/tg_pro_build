@@ -7,9 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/pro/pro_typing_overlay.h"
 
+#include "data/data_peer_id.h"
+#include "main/main_session.h"
 #include "ui/platform/ui_platform_utility.h"
+#include "window/main_window.h"
+#include "window/window_session_controller.h"
 
 #include <QGuiApplication>
+#include <QMouseEvent>
 #include <QPainter>
 #include <QScreen>
 
@@ -26,14 +31,23 @@ TypingOverlay::TypingOverlay()
 	setAttribute(Qt::WA_MacAlwaysShowToolWindow);
 	setAttribute(Qt::WA_TranslucentBackground);
 	setAttribute(Qt::WA_ShowWithoutActivating);
+	setCursor(Qt::PointingHandCursor);
 	setFixedSize(320, 52);
 
 	Ui::Platform::InitOnTopPanel(this);
 }
 
-void TypingOverlay::showTyping(const QString &userName) {
+void TypingOverlay::showTyping(
+		const QString &userName,
+		uint64 peerId,
+		Main::Session *session,
+		const Config &config) {
 	_userName = userName;
-	updatePosition();
+	_peerId = peerId;
+	_session = session;
+	_style = config.style;
+	applySize(config.size);
+	updatePosition(config);
 	show();
 	raise();
 	update();
@@ -43,33 +57,99 @@ void TypingOverlay::showTyping(const QString &userName) {
 void TypingOverlay::hideOverlay() {
 	hide();
 	_userName.clear();
+	_peerId = 0;
 }
 
-void TypingOverlay::updatePosition() {
-	const auto screen = QGuiApplication::primaryScreen();
+void TypingOverlay::applySize(Size size) {
+	switch (size) {
+	case Size::Small:
+		setFixedSize(280, 44);
+		_fontSize = 12;
+		_radius = 10;
+		break;
+	case Size::Medium:
+		setFixedSize(320, 52);
+		_fontSize = 14;
+		_radius = 12;
+		break;
+	case Size::Large:
+		setFixedSize(400, 64);
+		_fontSize = 16;
+		_radius = 14;
+		break;
+	}
+}
+
+void TypingOverlay::updatePosition(const Config &config) {
+	auto *screen = static_cast<QScreen*>(nullptr);
+	if (!config.screenName.isEmpty()) {
+		for (auto *s : QGuiApplication::screens()) {
+			if (s->name() == config.screenName) {
+				screen = s;
+				break;
+			}
+		}
+	}
+	if (!screen) {
+		screen = QGuiApplication::primaryScreen();
+	}
 	if (!screen) {
 		return;
 	}
-	const auto available = screen->availableGeometry();
-	move(available.right() - width() - 20, available.top() + 20);
+	const auto r = screen->availableGeometry();
+	constexpr auto kPadding = 20;
+
+	int x = 0;
+	int y = 0;
+	switch (config.corner) {
+	case Corner::TopLeft:
+		x = r.left() + kPadding;
+		y = r.top() + kPadding;
+		break;
+	case Corner::TopRight:
+		x = r.right() - width() - kPadding;
+		y = r.top() + kPadding;
+		break;
+	case Corner::BottomRight:
+		x = r.right() - width() - kPadding;
+		y = r.bottom() - height() - kPadding;
+		break;
+	case Corner::BottomLeft:
+		x = r.left() + kPadding;
+		y = r.bottom() - height() - kPadding;
+		break;
+	}
+	move(x, y);
 }
 
 void TypingOverlay::paintEvent(QPaintEvent *) {
 	auto p = QPainter(this);
 	p.setRenderHint(QPainter::Antialiasing);
 
-	p.setBrush(QColor(30, 30, 30, 220));
+	const auto isDark = (_style == Style::Dark);
+	p.setBrush(isDark ? QColor(30, 30, 30, 220) : QColor(255, 255, 255, 230));
 	p.setPen(Qt::NoPen);
-	p.drawRoundedRect(rect(), 12, 12);
+	p.drawRoundedRect(rect(), _radius, _radius);
 
 	auto font = p.font();
-	font.setPixelSize(14);
+	font.setPixelSize(_fontSize);
 	font.setBold(true);
 	p.setFont(font);
 
-	p.setPen(QColor(255, 255, 255));
+	p.setPen(isDark ? QColor(255, 255, 255) : QColor(30, 30, 30));
 	const auto textRect = rect().adjusted(16, 0, -16, 0);
 	p.drawText(textRect, Qt::AlignVCenter, _userName + u" is typing…"_q);
+}
+
+void TypingOverlay::mousePressEvent(QMouseEvent *e) {
+	if (e->button() != Qt::LeftButton || !_session || !_peerId) {
+		return;
+	}
+	if (const auto controller = _session->tryResolveWindow()) {
+		controller->widget()->activate();
+		controller->showPeerHistory(PeerId(_peerId));
+	}
+	hideOverlay();
 }
 
 } // namespace ProOverlay

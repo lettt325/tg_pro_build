@@ -59,8 +59,16 @@ public:
 	void setOverlayEnabled(bool enabled);
 	[[nodiscard]] bool overlayTypingEnabled() const;
 	void setOverlayTypingEnabled(bool enabled);
+	[[nodiscard]] int overlayCorner() const;
+	void setOverlayCorner(int corner);
+	[[nodiscard]] int overlaySize() const;
+	void setOverlaySize(int size);
+	[[nodiscard]] int overlayStyle() const;
+	void setOverlayStyle(int style);
+	[[nodiscard]] QString overlayScreenName() const;
+	void setOverlayScreenName(const QString &name);
 
-	void showTypingOverlay(const QString &userName);
+	void showTypingOverlay(const QString &userName, uint64 peerId);
 
 	void markPeerInteracted(uint64 peerId);
 	[[nodiscard]] bool consumePeerInteracted(uint64 peerId);
@@ -87,6 +95,10 @@ private:
 
 	bool _overlayEnabled = false;
 	bool _overlayTypingEnabled = false;
+	int _overlayCorner = 1;
+	int _overlaySize = 1;
+	int _overlayStyle = 0;
+	QString _overlayScreenName;
 	std::unique_ptr<ProOverlay::TypingOverlay> _typingOverlay;
 };
 

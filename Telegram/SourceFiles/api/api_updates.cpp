@@ -1134,7 +1134,7 @@ void Updates::handleSendActionUpdate(
 		&& action.type() == mtpc_sendMessageTypingAction) {
 		auto &storage = session().proStorage();
 		if (storage.overlayEnabled() && storage.overlayTypingEnabled()) {
-			storage.showTypingOverlay(from->name());
+			storage.showTypingOverlay(from->name(), peerId.value);
 		}
 	}
 }
