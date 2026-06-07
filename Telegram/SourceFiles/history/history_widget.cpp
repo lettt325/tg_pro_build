@@ -200,6 +200,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_window.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_info.h"
+#include "settings/pro/pro_settings_storage.h"
 
 #include <QtGui/QWindow>
 #include <QtCore/QMimeData>
@@ -6771,6 +6772,29 @@ bool HistoryWidget::showSendMessageError(
 	if (!_canSendMessages) {
 		return false;
 	}
+	{
+		const auto &pro = session().proStorage();
+		if (pro.weakWordsFilterEnabled()) {
+			const auto text = textWithTags.text.toLower();
+			for (const auto &word : pro.weakWords()) {
+				const auto w = word.toLower();
+				auto pos = 0;
+				while ((pos = text.indexOf(w, pos)) != -1) {
+					const auto before = (pos == 0)
+						|| !text[pos - 1].isLetterOrNumber();
+					const auto after = (pos + w.size() >= text.size())
+						|| !text[pos + w.size()].isLetterOrNumber();
+					if (before && after) {
+						controller()->showToast(
+							u"Нужно изменить формулировку"_q);
+						return true;
+					}
+					pos += w.size();
+				}
+			}
+		}
+	}
+
 	const auto topicRootId = resolveReplyToTopicRootId();
 	auto request = SendingErrorRequest{
 		.topicRootId = topicRootId,
