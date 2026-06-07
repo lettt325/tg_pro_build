@@ -359,6 +359,111 @@ void BuildWeakWordsSection(SectionBuilder &builder, ProState *state) {
 	builder.addDividerText(rpl::single(u"Messages containing filler or weak words cannot be sent until rephrased. Edit the word list to customize which words are flagged."_q));
 }
 
+void BuildGhostModeSection(SectionBuilder &builder) {
+	const auto container = builder.container();
+
+	builder.addSkip();
+	builder.addSubsectionTitle(rpl::single(u"Ghost Mode"_q));
+
+	struct GhostState {
+		rpl::variable<int> enabledCount = 0;
+	};
+	const auto ghost = container
+		? container->lifetime().make_state<GhostState>()
+		: nullptr;
+
+	const auto toggle = builder.addButton({
+		.id = u"pro/ghost_mode"_q,
+		.title = rpl::single(u"Ghost Mode"_q),
+		.icon = { &st::menuIconLock },
+		.label = ghost
+			? ghost->enabledCount.value(
+			) | rpl::map([](int count) {
+				return u"(%1/5)"_q.arg(count);
+			}) | rpl::type_erased
+			: rpl::single(u"(0/5)"_q) | rpl::type_erased,
+		.toggled = rpl::single(false),
+		.keywords = { u"ghost"_q, u"invisible"_q, u"privacy"_q },
+	});
+
+	builder.scope([&] {
+		const auto updateCount = [=] {
+			if (!ghost) return;
+			// Counted by each sub-toggle's toggledChanges.
+		};
+
+		struct SubToggles {
+			Ui::SettingsButton *readReceipts = nullptr;
+			Ui::SettingsButton *online = nullptr;
+			Ui::SettingsButton *instantOnline = nullptr;
+			Ui::SettingsButton *readOnInteract = nullptr;
+			Ui::SettingsButton *typing = nullptr;
+		};
+		const auto subs = container
+			? container->lifetime().make_state<SubToggles>()
+			: nullptr;
+
+		subs->readReceipts = builder.addButton({
+			.id = u"pro/ghost/no_read"_q,
+			.title = rpl::single(u"Don't send read receipts"_q),
+			.st = &st::settingsButtonNoIcon,
+			.toggled = rpl::single(false),
+			.keywords = { u"read"_q, u"receipts"_q, u"ghost"_q },
+		});
+
+		subs->online = builder.addButton({
+			.id = u"pro/ghost/no_online"_q,
+			.title = rpl::single(u"Don't update online status"_q),
+			.st = &st::settingsButtonNoIcon,
+			.toggled = rpl::single(false),
+			.keywords = { u"online"_q, u"status"_q, u"ghost"_q },
+		});
+
+		subs->typing = builder.addButton({
+			.id = u"pro/ghost/no_typing"_q,
+			.title = rpl::single(u"Hide typing status"_q),
+			.st = &st::settingsButtonNoIcon,
+			.toggled = rpl::single(false),
+			.keywords = { u"typing"_q, u"ghost"_q },
+		});
+
+		subs->instantOnline = builder.addButton({
+			.id = u"pro/ghost/instant_online"_q,
+			.title = rpl::single(u"Instant online after offline"_q),
+			.st = &st::settingsButtonNoIcon,
+			.toggled = rpl::single(false),
+			.keywords = { u"instant"_q, u"online"_q, u"ghost"_q },
+		});
+
+		subs->readOnInteract = builder.addButton({
+			.id = u"pro/ghost/read_on_interact"_q,
+			.title = rpl::single(u"Mark read on interaction"_q),
+			.st = &st::settingsButtonNoIcon,
+			.toggled = rpl::single(false),
+			.keywords = { u"read"_q, u"interact"_q, u"ghost"_q },
+		});
+
+		if (ghost && subs->readReceipts) {
+			const auto track = [=] {
+				rpl::combine(
+					subs->readReceipts->toggledValue(),
+					subs->online->toggledValue(),
+					subs->typing->toggledValue(),
+					subs->instantOnline->toggledValue(),
+					subs->readOnInteract->toggledValue()
+				) | rpl::map([](bool a, bool b, bool c, bool d, bool e) {
+					return int(a) + int(b) + int(c) + int(d) + int(e);
+				}) | rpl::start_with_next([=](int count) {
+					ghost->enabledCount = count;
+				}, container->lifetime());
+			};
+			track();
+		}
+	}, toggle ? toggle->toggledValue() : nullptr);
+
+	builder.addDividerText(rpl::single(u"Ghost Mode hides your online presence. Enable individual options to control which signals are suppressed."_q));
+}
+
 void BuildUpdatesSection(
 		SectionBuilder &builder,
 		Window::SessionController *controller) {
@@ -454,6 +559,7 @@ const auto kMeta = BuildHelper({
 	}
 	BuildSaveDeletedSection(builder, state);
 	BuildWeakWordsSection(builder, state);
+	BuildGhostModeSection(builder);
 	BuildUpdatesSection(builder, builder.controller());
 });
 
