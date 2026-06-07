@@ -21,6 +21,7 @@ namespace ProSettings {
 class Storage {
 public:
 	explicit Storage(not_null<Main::Session*> session);
+	~Storage();
 
 	[[nodiscard]] std::vector<QString> weakWords() const;
 	void setWeakWords(std::vector<QString> words);

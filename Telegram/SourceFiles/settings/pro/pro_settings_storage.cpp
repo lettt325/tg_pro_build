@@ -46,6 +46,8 @@ Storage::Storage(not_null<Main::Session*> session)
 	load();
 }
 
+Storage::~Storage() = default;
+
 std::vector<QString> Storage::weakWords() const {
 	return _weakWords;
 }
