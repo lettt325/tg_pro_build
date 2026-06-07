@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/pro/pro_typing_overlay.h"
 
+#include "ui/platform/ui_platform_utility.h"
+
 #include <QGuiApplication>
 #include <QPainter>
 #include <QScreen>
@@ -16,7 +18,7 @@ namespace ProOverlay {
 TypingOverlay::TypingOverlay()
 : QWidget(nullptr)
 , _hideTimer([=] { hideOverlay(); }) {
-	setWindowFlags(Qt::FramelessWindowHint
+	setWindowFlags(Qt::WindowFlags(Qt::FramelessWindowHint)
 		| Qt::WindowStaysOnTopHint
 		| Qt::BypassWindowManagerHint
 		| Qt::NoDropShadowWindowHint
@@ -25,6 +27,8 @@ TypingOverlay::TypingOverlay()
 	setAttribute(Qt::WA_TranslucentBackground);
 	setAttribute(Qt::WA_ShowWithoutActivating);
 	setFixedSize(320, 52);
+
+	Ui::Platform::InitOnTopPanel(this);
 }
 
 void TypingOverlay::showTyping(const QString &userName) {
@@ -60,6 +64,7 @@ void TypingOverlay::paintEvent(QPaintEvent *) {
 
 	auto font = p.font();
 	font.setPixelSize(14);
+	font.setBold(true);
 	p.setFont(font);
 
 	p.setPen(QColor(255, 255, 255));
