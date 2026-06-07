@@ -444,20 +444,17 @@ void BuildGhostModeSection(SectionBuilder &builder) {
 		});
 
 		if (ghost && subs->readReceipts) {
-			const auto track = [=] {
-				rpl::combine(
-					subs->readReceipts->toggledValue(),
-					subs->online->toggledValue(),
-					subs->typing->toggledValue(),
-					subs->instantOnline->toggledValue(),
-					subs->readOnInteract->toggledValue()
-				) | rpl::map([](bool a, bool b, bool c, bool d, bool e) {
-					return int(a) + int(b) + int(c) + int(d) + int(e);
-				}) | rpl::start_with_next([=](int count) {
-					ghost->enabledCount = count;
-				}, container->lifetime());
-			};
-			track();
+			rpl::combine(
+				subs->readReceipts->toggledValue(),
+				subs->online->toggledValue(),
+				subs->typing->toggledValue(),
+				subs->instantOnline->toggledValue(),
+				subs->readOnInteract->toggledValue()
+			) | rpl::map([](bool a, bool b, bool c, bool d, bool e) {
+				return int(a) + int(b) + int(c) + int(d) + int(e);
+			}) | rpl::on_next([=](int count) {
+				ghost->enabledCount = count;
+			}, container->lifetime());
 		}
 	}, toggle ? toggle->toggledValue() : nullptr);
 
