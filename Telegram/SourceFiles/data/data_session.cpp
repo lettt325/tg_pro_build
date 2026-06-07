@@ -2973,10 +2973,12 @@ void Session::processMessagesDeleted(
 			const auto item = i->second;
 			const auto history = item->history();
 			historiesToCheck.emplace(history);
-			if (saving && !pro.isDeletedByOther(peerId.value, item->id.bare)) {
-				pro.addDeletedMessage(peerId.value, item->id.bare);
+			if (saving) {
+				if (!pro.isDeletedByOther(peerId.value, item->id.bare)) {
+					pro.addDeletedMessage(peerId.value, item->id.bare);
+				}
 				notifyItemDataChange(item);
-			} else if (!saving) {
+			} else {
 				toDestroy.push_back(item);
 			}
 		} else if (affected) {
@@ -3008,10 +3010,12 @@ void Session::processNonChannelMessagesDeleted(const QVector<MTPint> &data) {
 			const auto saving = pro.saveDeletedEnabled()
 				&& !ranges::contains(pro.exceptionPeerIds(), pid);
 			historiesToCheck.emplace(history);
-			if (saving && !pro.isDeletedByOther(pid, item->id.bare)) {
-				pro.addDeletedMessage(pid, item->id.bare);
+			if (saving) {
+				if (!pro.isDeletedByOther(pid, item->id.bare)) {
+					pro.addDeletedMessage(pid, item->id.bare);
+				}
 				notifyItemDataChange(item);
-			} else if (!saving) {
+			} else {
 				toDestroy.push_back(item);
 			}
 		}
