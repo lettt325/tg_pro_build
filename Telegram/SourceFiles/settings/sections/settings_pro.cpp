@@ -27,6 +27,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "window/window_session_controller.h"
 #include "styles/style_layers.h"
+
+#include <QtGui/QGuiApplication>
 #include "styles/style_menu_icons.h"
 #include "styles/style_settings.h"
 
@@ -382,11 +384,35 @@ void BuildUpdatesSection(
 			.onClick = [=] {
 				controller->show(Box([](not_null<Ui::GenericBox*> box) {
 					box->setTitle(rpl::single(u"Sparkle Update Log"_q));
-					const auto log = Platform::SparkleLog();
-					box->addRow(object_ptr<Ui::FlatLabel>(
-						box,
-						rpl::single(log),
-						st::boxLabel));
+					const auto sessions = Platform::SparkleSessions();
+					const auto wrap = box->addRow(
+						object_ptr<Ui::VerticalLayout>(box));
+					if (sessions.empty()) {
+						wrap->add(object_ptr<Ui::FlatLabel>(
+							wrap,
+							rpl::single(u"No log sessions"_q),
+							st::boxLabel));
+					} else {
+						for (const auto &s : sessions) {
+							wrap->add(
+								CreateButtonWithIcon(
+									wrap,
+									rpl::single(s.label),
+									st::settingsButtonNoIcon));
+							const auto label = wrap->add(
+								object_ptr<Ui::FlatLabel>(
+									wrap,
+									rpl::single(s.text),
+									st::boxLabel));
+							label->setSelectable(true);
+							label->setContextCopyText(
+								u"Copy Log"_q);
+						}
+					}
+					box->addButton(rpl::single(u"Copy All"_q), [=] {
+						QGuiApplication::clipboard()->setText(
+							Platform::SparkleLog());
+					});
 					box->addButton(tr::lng_close(), [=] {
 						box->closeBox();
 					});

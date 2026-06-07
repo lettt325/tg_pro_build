@@ -11,7 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #import <Sparkle/Sparkle.h>
 
 @interface TGProSparkleDelegate : NSObject <SPUUpdaterDelegate>
-@property (nonatomic, strong) NSMutableArray<NSString *> *logEntries;
+@property (nonatomic, strong) NSMutableArray<NSDictionary *> *sessions;
+@property (nonatomic) int sessionCounter;
 @end
 
 @implementation TGProSparkleDelegate
@@ -19,10 +20,31 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 - (instancetype)init {
 	self = [super init];
 	if (self) {
-		_logEntries = [[NSMutableArray alloc] init];
+		_sessions = [[NSMutableArray alloc] init];
+		_sessionCounter = 0;
+		[self startSession:@"Init"];
 		[self addLog:@"Sparkle delegate initialized"];
 	}
 	return self;
+}
+
+- (void)startSession:(NSString *)label {
+	@synchronized(self.sessions) {
+		self.sessionCounter++;
+		NSDateFormatter *fmt = [[NSDateFormatter alloc] init];
+		[fmt setDateFormat:@"HH:mm:ss"];
+		NSString *fullLabel = [NSString stringWithFormat:@"#%d %@ [%@]",
+			self.sessionCounter, label,
+			[fmt stringFromDate:[NSDate date]]];
+		[self.sessions addObject:@{
+			@"id": @(self.sessionCounter),
+			@"label": fullLabel,
+			@"entries": [[NSMutableArray alloc] init],
+		}];
+		if (self.sessions.count > 20) {
+			[self.sessions removeObjectAtIndex:0];
+		}
+	}
 }
 
 - (void)addLog:(NSString *)message {
@@ -30,10 +52,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 	[fmt setDateFormat:@"HH:mm:ss"];
 	NSString *entry = [NSString stringWithFormat:@"[%@] %@",
 		[fmt stringFromDate:[NSDate date]], message];
-	@synchronized(self.logEntries) {
-		[self.logEntries addObject:entry];
-		if (self.logEntries.count > 100) {
-			[self.logEntries removeObjectAtIndex:0];
+	@synchronized(self.sessions) {
+		if (self.sessions.count > 0) {
+			NSMutableArray *entries = self.sessions.lastObject[@"entries"];
+			[entries addObject:entry];
 		}
 	}
 }
@@ -57,7 +79,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 		error:(NSError *)error {
 	if (error) {
 		[self addLog:[NSString stringWithFormat:
-			@"No update found (error: %@)",
+			@"No update found — %@",
 			error.localizedDescription]];
 	} else {
 		[self addLog:@"No update available (already latest)"];
@@ -67,7 +89,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 - (void)updater:(SPUUpdater *)updater
 		didAbortWithError:(NSError *)error {
 	[self addLog:[NSString stringWithFormat:
-		@"Update aborted: %@", error.localizedDescription]];
+		@"ERROR: %@", error.localizedDescription]];
 }
 
 - (void)updater:(SPUUpdater *)updater
@@ -115,38 +137,58 @@ void InitSparkle() {
 	NSString *pubKey = [[NSBundle mainBundle]
 		objectForInfoDictionaryKey:@"SUPublicEDKey"];
 	[g_sparkleDelegate addLog:
-		[NSString stringWithFormat:@"Feed URL: %@", feedURL ?: @"(not set)"]];
+		[NSString stringWithFormat:@"Feed: %@", feedURL ?: @"(not set)"]];
 	[g_sparkleDelegate addLog:
-		[NSString stringWithFormat:@"Public key: %@",
-			(pubKey.length > 0) ? @"set" : @"(not set)"]];
+		[NSString stringWithFormat:@"Ed25519 key: %@",
+			(pubKey.length > 0) ? @"present" : @"(not set)"]];
 
 	g_updaterController = [[SPUStandardUpdaterController alloc]
 		initWithStartingUpdater:YES
 		updaterDelegate:g_sparkleDelegate
 		userDriverDelegate:nil];
 
-	[g_sparkleDelegate addLog:@"Updater controller created"];
+	[g_sparkleDelegate addLog:@"Updater started"];
 }
 
 void CheckForUpdates() {
 	if (g_sparkleDelegate) {
-		[g_sparkleDelegate addLog:@"Manual check initiated"];
+		[g_sparkleDelegate startSession:@"Manual check"];
+		[g_sparkleDelegate addLog:@"Checking for updates..."];
 	}
 	[g_updaterController checkForUpdates:nil];
 }
 
-QString SparkleLog() {
+std::vector<SparkleLogSession> SparkleSessions() {
+	std::vector<SparkleLogSession> result;
 	if (!g_sparkleDelegate) {
-		return u"Sparkle not initialized"_q;
+		return result;
 	}
-	NSMutableString *result = [[NSMutableString alloc] init];
-	@synchronized(g_sparkleDelegate.logEntries) {
-		for (NSString *entry in g_sparkleDelegate.logEntries) {
-			[result appendString:entry];
-			[result appendString:@"\n"];
+	@synchronized(g_sparkleDelegate.sessions) {
+		for (NSDictionary *session in g_sparkleDelegate.sessions) {
+			SparkleLogSession s;
+			s.id = [session[@"id"] intValue];
+			s.label = QString::fromNSString(session[@"label"]);
+			NSMutableString *text = [[NSMutableString alloc] init];
+			for (NSString *entry in session[@"entries"]) {
+				[text appendString:entry];
+				[text appendString:@"\n"];
+			}
+			s.text = QString::fromNSString(text);
+			result.push_back(std::move(s));
 		}
 	}
-	return QString::fromNSString(result);
+	return result;
+}
+
+QString SparkleLog() {
+	const auto sessions = SparkleSessions();
+	QString result;
+	for (const auto &s : sessions) {
+		result += u"— "_q + s.label + u"\n"_q + s.text + u"\n"_q;
+	}
+	return result.isEmpty()
+		? u"Sparkle not initialized"_q
+		: result;
 }
 
 } // namespace Platform
@@ -159,6 +201,10 @@ void InitSparkle() {
 }
 
 void CheckForUpdates() {
+}
+
+std::vector<SparkleLogSession> SparkleSessions() {
+	return {};
 }
 
 QString SparkleLog() {

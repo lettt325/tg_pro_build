@@ -8,11 +8,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include <QString>
+#include <vector>
 
 namespace Platform {
 
 void InitSparkle();
 void CheckForUpdates();
+
+struct SparkleLogSession {
+	int id = 0;
+	QString label;
+	QString text;
+};
+
+[[nodiscard]] std::vector<SparkleLogSession> SparkleSessions();
 [[nodiscard]] QString SparkleLog();
 
 } // namespace Platform

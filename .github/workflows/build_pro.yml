@@ -229,11 +229,10 @@ jobs:
             exit 0
           fi
           SIGNATURE=$(echo "$SPARKLE_PRIVATE_KEY" | "$SIGN_TOOL" --ed-key-file - build/TGPro.dmg)
-          DMG_SIZE=$(stat -f%z build/TGPro.dmg)
           VERSION=$(grep 'AppVersionStrSmall' Telegram/build/version 2>/dev/null | awk '{print $2}' || echo "0.0.0")
           PUBDATE=$(date -R)
-          printf '<?xml version="1.0" encoding="utf-8"?>\n<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">\n  <channel>\n    <title>TGPro Updates</title>\n    <item>\n      <title>TGPro %s</title>\n      <sparkle:version>%s</sparkle:version>\n      <sparkle:shortVersionString>%s</sparkle:shortVersionString>\n      <pubDate>%s</pubDate>\n      <enclosure\n        url="https://github.com/tgprodev/tg_pro_build/releases/download/nightly/TGPro.dmg"\n        %s\n        length="%s"\n        type="application/octet-stream" />\n    </item>\n  </channel>\n</rss>\n' \
-            "$VERSION" "$VERSION" "$VERSION" "$PUBDATE" "$SIGNATURE" "$DMG_SIZE" > appcast.xml
+          printf '<?xml version="1.0" encoding="utf-8"?>\n<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">\n  <channel>\n    <title>TGPro Updates</title>\n    <item>\n      <title>TGPro %s</title>\n      <sparkle:version>%s</sparkle:version>\n      <sparkle:shortVersionString>%s</sparkle:shortVersionString>\n      <pubDate>%s</pubDate>\n      <enclosure\n        url="https://github.com/tgprodev/tg_pro_build/releases/download/nightly/TGPro.dmg"\n        %s\n        type="application/octet-stream" />\n    </item>\n  </channel>\n</rss>\n' \
+            "$VERSION" "$VERSION" "$VERSION" "$PUBDATE" "$SIGNATURE" > appcast.xml
           echo "Generated appcast.xml for version $VERSION"
           git config user.name "tgpro-ci"
           git config user.email "ci@tgpro.dev"
