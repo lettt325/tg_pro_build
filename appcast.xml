@@ -6,10 +6,10 @@
       <title>TGPro 6.8.4</title>
       <sparkle:version>6.8.4</sparkle:version>
       <sparkle:shortVersionString>6.8.4</sparkle:shortVersionString>
-      <pubDate>Sun, 07 Jun 2026 06:49:20 +0000</pubDate>
+      <pubDate>Sun, 07 Jun 2026 07:16:45 +0000</pubDate>
       <enclosure
         url="https://github.com/tgprodev/tg_pro_build/releases/download/nightly/TGPro.dmg"
-        sparkle:edSignature="1h4byr0JdBwg33xdaZj2MEGs/AvdrUEU2b9/mrWXDuyRtvjMiVvOxJ8K4qxUwDM0FR/jXapDYC/btRTu2/u3AQ==" length="152196160"
+        sparkle:edSignature="z0njdJ0H0L/3VKTZalj7Ub03ot+0KERJjrbaDM96nEEQ16lC/VYl7MXFPdMksjyV1EGOJvmgGtuES4A9+G85BA==" length="153075774"
         type="application/octet-stream" />
     </item>
   </channel>
