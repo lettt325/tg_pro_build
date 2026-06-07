@@ -374,14 +374,13 @@ void BuildGhostModeSection(SectionBuilder &builder) {
 
 	const auto toggle = builder.addButton({
 		.id = u"pro/ghost_mode"_q,
-		.title = rpl::single(u"Ghost Mode"_q),
-		.icon = { &st::menuIconLock },
-		.label = ghost
+		.title = ghost
 			? ghost->enabledCount.value(
 			) | rpl::map([](int count) {
-				return u"(%1/5)"_q.arg(count);
+				return u"Ghost Mode (%1/5)"_q.arg(count);
 			}) | rpl::type_erased
-			: rpl::single(u"(0/5)"_q) | rpl::type_erased,
+			: rpl::single(u"Ghost Mode (0/5)"_q) | rpl::type_erased,
+		.icon = { &st::menuIconLock },
 		.toggled = rpl::single(false),
 		.keywords = { u"ghost"_q, u"invisible"_q, u"privacy"_q },
 	});
