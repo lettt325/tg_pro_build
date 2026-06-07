@@ -133,17 +133,17 @@ jobs:
           cmake --build build
           cmake --install build
 
-      - name: Get ccache version.
-        run: echo "CCACHE_VER=$(ccache --version | head -1 | awk '{print $3}')" >> $GITHUB_ENV
+      - name: Get clang version for cache key.
+        run: echo "CLANG_VER=$(clang --version | head -1 | sed 's/[^0-9.]//g')" >> $GITHUB_ENV
 
       - name: ccache cache.
         id: cache-ccache
         uses: actions/cache@v5
         with:
           path: /Users/runner/ccache.tar
-          key: ${{ runner.OS }}-ccache-${{ env.CCACHE_VER }}-${{ github.run_id }}
+          key: ${{ runner.OS }}-ccache-clang${{ env.CLANG_VER }}-${{ github.run_id }}
           restore-keys: |
-            ${{ runner.OS }}-ccache-${{ env.CCACHE_VER }}-
+            ${{ runner.OS }}-ccache-clang${{ env.CLANG_VER }}-
             ${{ runner.OS }}-ccache-
 
       - name: Restore ccache.
@@ -161,17 +161,18 @@ jobs:
       - name: Configure ccache.
         run: |
           export CCACHE_DIR=/Users/runner/ccache
+          CLANG_VER=$(clang --version | head -1)
+          echo "CCACHE_COMPILER_STRING=$CLANG_VER" >> $GITHUB_ENV
           ccache --max-size=10G
           ccache --zero-stats
           ccache --set-config=sloppiness=include_file_mtime,include_file_ctime,time_macros,pch_defines,file_stat_matches
-          ccache --set-config=compiler_check=content
           ccache --set-config=hash_dir=false
 
       - name: Telegram Desktop build.
         env:
           CCACHE_DIR: /Users/runner/ccache
           CCACHE_SLOPPINESS: include_file_mtime,include_file_ctime,time_macros,pch_defines,file_stat_matches
-          CCACHE_COMPILERCHECK: content
+          CCACHE_COMPILERCHECK: "string:${{ env.CCACHE_COMPILER_STRING }}"
           CCACHE_NOHASHDIR: "true"
           SPARKLE_ED25519_PUBLIC_KEY: ${{ secrets.SPARKLE_ED25519_PUBLIC_KEY }}
         run: |
