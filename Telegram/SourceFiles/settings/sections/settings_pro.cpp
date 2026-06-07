@@ -42,14 +42,16 @@ namespace {
 using namespace Builder;
 
 struct ProState {
-	std::unique_ptr<ProSettings::Storage> storage;
+	ProSettings::Storage *storage = nullptr;
 	base::flat_set<not_null<PeerData*>> exceptions;
 	rpl::variable<int> exceptionsCount = 0;
 	rpl::variable<std::vector<QString>> weakWords;
+	base::flat_set<not_null<PeerData*>> ghostExceptions;
+	rpl::variable<int> ghostExceptionsCount = 0;
 };
 
 void InitProState(ProState *state, not_null<Main::Session*> session) {
-	state->storage = std::make_unique<ProSettings::Storage>(session);
+	state->storage = &session->proStorage();
 
 	state->weakWords = state->storage->weakWords();
 
@@ -61,13 +63,25 @@ void InitProState(ProState *state, not_null<Main::Session*> session) {
 		}
 	}
 	state->exceptionsCount = int(state->exceptions.size());
+
+	for (const auto &id : state->storage->ghostExceptionPeerIds()) {
+		const auto peerId = PeerId(id);
+		if (peerId) {
+			const auto peer = session->data().peer(peerId);
+			state->ghostExceptions.emplace(peer);
+		}
+	}
+	state->ghostExceptionsCount = int(state->ghostExceptions.size());
 }
 
-class ProExceptionsController final : public PeerListController {
+class GenericExceptionsController final : public PeerListController {
 public:
-	ProExceptionsController(
+	GenericExceptionsController(
 		not_null<Main::Session*> session,
-		ProState *state);
+		base::flat_set<not_null<PeerData*>> *peers,
+		rpl::variable<int> *count,
+		Fn<void(uint64)> onAdd,
+		Fn<void(uint64)> onRemove);
 
 	Main::Session &session() const override;
 	void prepare() override;
@@ -82,52 +96,60 @@ private:
 		not_null<PeerData*> peer) const;
 
 	const not_null<Main::Session*> _session;
-	ProState * const _state;
-
+	base::flat_set<not_null<PeerData*>> * const _peers;
+	rpl::variable<int> * const _count;
+	Fn<void(uint64)> _onAdd;
+	Fn<void(uint64)> _onRemove;
 };
 
-ProExceptionsController::ProExceptionsController(
+GenericExceptionsController::GenericExceptionsController(
 	not_null<Main::Session*> session,
-	ProState *state)
+	base::flat_set<not_null<PeerData*>> *peers,
+	rpl::variable<int> *count,
+	Fn<void(uint64)> onAdd,
+	Fn<void(uint64)> onRemove)
 : _session(session)
-, _state(state) {
+, _peers(peers)
+, _count(count)
+, _onAdd(std::move(onAdd))
+, _onRemove(std::move(onRemove)) {
 }
 
-Main::Session &ProExceptionsController::session() const {
+Main::Session &GenericExceptionsController::session() const {
 	return *_session;
 }
 
-void ProExceptionsController::prepare() {
-	for (const auto &peer : _state->exceptions) {
+void GenericExceptionsController::prepare() {
+	for (const auto &peer : *_peers) {
 		delegate()->peerListAppendRow(createRow(peer));
 	}
 	delegate()->peerListRefreshRows();
 }
 
-void ProExceptionsController::rowClicked(not_null<PeerListRow*> row) {
+void GenericExceptionsController::rowClicked(not_null<PeerListRow*> row) {
 }
 
-void ProExceptionsController::rowRightActionClicked(
+void GenericExceptionsController::rowRightActionClicked(
 		not_null<PeerListRow*> row) {
 	const auto peer = row->peer();
-	_state->exceptions.remove(peer);
-	_state->exceptionsCount = int(_state->exceptions.size());
-	_state->storage->removeException(peer->id.value);
+	_peers->remove(peer);
+	*_count = int(_peers->size());
+	_onRemove(peer->id.value);
 	delegate()->peerListRemoveRow(row);
 	delegate()->peerListRefreshRows();
 }
 
-void ProExceptionsController::addPeer(not_null<PeerData*> peer) {
-	if (!_state->exceptions.emplace(peer).second) {
+void GenericExceptionsController::addPeer(not_null<PeerData*> peer) {
+	if (!_peers->emplace(peer).second) {
 		return;
 	}
-	_state->exceptionsCount = int(_state->exceptions.size());
-	_state->storage->addException(peer->id.value);
+	*_count = int(_peers->size());
+	_onAdd(peer->id.value);
 	delegate()->peerListAppendRow(createRow(peer));
 	delegate()->peerListRefreshRows();
 }
 
-std::unique_ptr<PeerListRow> ProExceptionsController::createRow(
+std::unique_ptr<PeerListRow> GenericExceptionsController::createRow(
 		not_null<PeerData*> peer) const {
 	auto row = std::make_unique<PeerListRowWithLink>(peer);
 	row->setActionLink(u"Remove"_q);
@@ -158,17 +180,20 @@ void BuildSaveDeletedSection(SectionBuilder &builder, ProState *state) {
 
 	builder.scope([&] {
 		struct ExceptionsState {
-			std::unique_ptr<ProExceptionsController> controller;
+			std::unique_ptr<GenericExceptionsController> controller;
 			std::unique_ptr<PeerListContentDelegateSimple> delegate;
 		};
 
 		const auto inner = builder.container();
-		ProExceptionsController *exceptionsController = nullptr;
+		GenericExceptionsController *exceptionsController = nullptr;
 
 		if (inner && controller && state) {
-			auto listController = std::make_unique<ProExceptionsController>(
+			auto listController = std::make_unique<GenericExceptionsController>(
 				&controller->session(),
-				state);
+				&state->exceptions,
+				&state->exceptionsCount,
+				[=](uint64 id) { state->storage->addException(id); },
+				[=](uint64 id) { state->storage->removeException(id); });
 			listController->setStyleOverrides(&st::settingsBlockedList);
 			exceptionsController = listController.get();
 
@@ -359,17 +384,20 @@ void BuildWeakWordsSection(SectionBuilder &builder, ProState *state) {
 	builder.addDividerText(rpl::single(u"Messages containing filler or weak words cannot be sent until rephrased. Edit the word list to customize which words are flagged."_q));
 }
 
-void BuildGhostModeSection(SectionBuilder &builder) {
+void BuildGhostModeSection(
+		SectionBuilder &builder,
+		ProState *state) {
 	const auto container = builder.container();
+	const auto controller = builder.controller();
 
 	builder.addSkip();
 	builder.addSubsectionTitle(rpl::single(u"Ghost Mode"_q));
 
-	struct GhostState {
+	struct GhostUIState {
 		rpl::variable<int> enabledCount = 0;
 	};
 	const auto ghost = container
-		? container->lifetime().make_state<GhostState>()
+		? container->lifetime().make_state<GhostUIState>()
 		: nullptr;
 
 	const auto toggle = builder.addButton({
@@ -377,25 +405,26 @@ void BuildGhostModeSection(SectionBuilder &builder) {
 		.title = ghost
 			? ghost->enabledCount.value(
 			) | rpl::map([](int count) {
-				return u"Ghost Mode (%1/5)"_q.arg(count);
+				return u"Ghost Mode (%1/3)"_q.arg(count);
 			}) | rpl::type_erased
-			: rpl::single(u"Ghost Mode (0/5)"_q) | rpl::type_erased,
+			: rpl::single(u"Ghost Mode (0/3)"_q) | rpl::type_erased,
 		.icon = { &st::menuIconLock },
-		.toggled = rpl::single(false),
+		.toggled = rpl::single(
+			state ? state->storage->ghostEnabled() : false),
 		.keywords = { u"ghost"_q, u"invisible"_q, u"privacy"_q },
 	});
 
-	builder.scope([&] {
-		const auto updateCount = [=] {
-			if (!ghost) return;
-			// Counted by each sub-toggle's toggledChanges.
-		};
+	if (toggle && state) {
+		toggle->toggledChanges(
+		) | rpl::on_next([=](bool enabled) {
+			state->storage->setGhostEnabled(enabled);
+		}, toggle->lifetime());
+	}
 
+	builder.scope([&] {
 		struct SubToggles {
 			Ui::SettingsButton *readReceipts = nullptr;
 			Ui::SettingsButton *online = nullptr;
-			Ui::SettingsButton *instantOnline = nullptr;
-			Ui::SettingsButton *readOnInteract = nullptr;
 			Ui::SettingsButton *typing = nullptr;
 		};
 		const auto subs = container
@@ -406,7 +435,8 @@ void BuildGhostModeSection(SectionBuilder &builder) {
 			.id = u"pro/ghost/no_read"_q,
 			.title = rpl::single(u"Don't send read receipts"_q),
 			.st = &st::settingsButtonNoIcon,
-			.toggled = rpl::single(false),
+			.toggled = rpl::single(
+				state ? state->storage->ghostNoRead() : false),
 			.keywords = { u"read"_q, u"receipts"_q, u"ghost"_q },
 		});
 
@@ -414,7 +444,8 @@ void BuildGhostModeSection(SectionBuilder &builder) {
 			.id = u"pro/ghost/no_online"_q,
 			.title = rpl::single(u"Don't update online status"_q),
 			.st = &st::settingsButtonNoIcon,
-			.toggled = rpl::single(false),
+			.toggled = rpl::single(
+				state ? state->storage->ghostNoOnline() : false),
 			.keywords = { u"online"_q, u"status"_q, u"ghost"_q },
 		});
 
@@ -422,42 +453,120 @@ void BuildGhostModeSection(SectionBuilder &builder) {
 			.id = u"pro/ghost/no_typing"_q,
 			.title = rpl::single(u"Hide typing status"_q),
 			.st = &st::settingsButtonNoIcon,
-			.toggled = rpl::single(false),
+			.toggled = rpl::single(
+				state ? state->storage->ghostNoTyping() : false),
 			.keywords = { u"typing"_q, u"ghost"_q },
 		});
 
-		subs->instantOnline = builder.addButton({
-			.id = u"pro/ghost/instant_online"_q,
-			.title = rpl::single(u"Instant online after offline"_q),
-			.st = &st::settingsButtonNoIcon,
-			.toggled = rpl::single(false),
-			.keywords = { u"instant"_q, u"online"_q, u"ghost"_q },
-		});
+		if (state && subs->readReceipts) {
+			subs->readReceipts->toggledChanges(
+			) | rpl::on_next([=](bool v) {
+				state->storage->setGhostNoRead(v);
+			}, subs->readReceipts->lifetime());
 
-		subs->readOnInteract = builder.addButton({
-			.id = u"pro/ghost/read_on_interact"_q,
-			.title = rpl::single(u"Mark read on interaction"_q),
-			.st = &st::settingsButtonNoIcon,
-			.toggled = rpl::single(false),
-			.keywords = { u"read"_q, u"interact"_q, u"ghost"_q },
-		});
+			subs->online->toggledChanges(
+			) | rpl::on_next([=](bool v) {
+				state->storage->setGhostNoOnline(v);
+			}, subs->online->lifetime());
+
+			subs->typing->toggledChanges(
+			) | rpl::on_next([=](bool v) {
+				state->storage->setGhostNoTyping(v);
+			}, subs->typing->lifetime());
+		}
 
 		if (ghost && subs->readReceipts) {
 			rpl::combine(
 				subs->readReceipts->toggledValue(),
 				subs->online->toggledValue(),
-				subs->typing->toggledValue(),
-				subs->instantOnline->toggledValue(),
-				subs->readOnInteract->toggledValue()
-			) | rpl::map([](bool a, bool b, bool c, bool d, bool e) {
-				return int(a) + int(b) + int(c) + int(d) + int(e);
+				subs->typing->toggledValue()
+			) | rpl::map([](bool a, bool b, bool c) {
+				return int(a) + int(b) + int(c);
 			}) | rpl::on_next([=](int count) {
 				ghost->enabledCount = count;
 			}, container->lifetime());
 		}
+
+		struct ExceptionsState {
+			std::unique_ptr<GenericExceptionsController> controller;
+			std::unique_ptr<PeerListContentDelegateSimple> delegate;
+		};
+
+		const auto inner = builder.container();
+		GenericExceptionsController *exceptionsController = nullptr;
+
+		if (inner && controller && state) {
+			auto listController = std::make_unique<
+				GenericExceptionsController>(
+				&controller->session(),
+				&state->ghostExceptions,
+				&state->ghostExceptionsCount,
+				[=](uint64 id) {
+					state->storage->addGhostException(id);
+				},
+				[=](uint64 id) {
+					state->storage->removeGhostException(id);
+				});
+			listController->setStyleOverrides(&st::settingsBlockedList);
+			exceptionsController = listController.get();
+
+			builder.addButton({
+				.id = u"pro/ghost/add_exception"_q,
+				.title = rpl::single(u"Add exception"_q),
+				.icon = { &st::menuIconInviteSettings },
+				.onClick = [=] {
+					auto pickerController = std::make_unique<
+						ChooseRecipientBoxController>(
+						ChooseRecipientArgs{
+							.session = &controller->session(),
+							.callback = [=](
+									not_null<Data::Thread*> thread) {
+								exceptionsController->addPeer(
+									thread->peer());
+							},
+							.filter = [=](
+									not_null<Data::Thread*> thread) {
+								return !state->ghostExceptions.contains(
+									thread->peer());
+							},
+						});
+					controller->show(Box<PeerListBox>(
+						std::move(pickerController),
+						[](not_null<PeerListBox*> box) {
+							box->addButton(
+								tr::lng_cancel(),
+								[=] { box->closeBox(); });
+						}));
+				},
+				.keywords = { u"exceptions"_q, u"add"_q, u"chats"_q },
+			});
+
+			const auto content = inner->add(
+				object_ptr<PeerListContent>(
+					inner,
+					listController.get()));
+
+			const auto es = content->lifetime().make_state<
+				ExceptionsState>();
+			es->controller = std::move(listController);
+			es->delegate = std::make_unique<
+				PeerListContentDelegateSimple>();
+			es->delegate->setContent(content);
+			es->controller->setDelegate(es->delegate.get());
+		} else {
+			builder.addButton({
+				.id = u"pro/ghost/add_exception"_q,
+				.title = rpl::single(u"Add exception"_q),
+				.icon = { &st::menuIconInviteSettings },
+				.keywords = { u"exceptions"_q, u"add"_q, u"chats"_q },
+			});
+		}
 	}, toggle ? toggle->toggledValue() : nullptr);
 
-	builder.addDividerText(rpl::single(u"Ghost Mode hides your online presence. Enable individual options to control which signals are suppressed."_q));
+	builder.addDividerText(rpl::single(
+		u"Ghost Mode hides your online presence. Enable individual "
+		"options to control which signals are suppressed. Use Exceptions "
+		"to exclude specific chats from Ghost Mode."_q));
 }
 
 void BuildUpdatesSection(
@@ -555,7 +664,7 @@ const auto kMeta = BuildHelper({
 	}
 	BuildSaveDeletedSection(builder, state);
 	BuildWeakWordsSection(builder, state);
-	BuildGhostModeSection(builder);
+	BuildGhostModeSection(builder, state);
 	BuildUpdatesSection(builder, builder.controller());
 });
 

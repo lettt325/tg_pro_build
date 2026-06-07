@@ -51,6 +51,10 @@ class FaqSuggestions;
 class RecentSearches;
 } // namespace Settings
 
+namespace ProSettings {
+class Storage;
+} // namespace ProSettings
+
 namespace HistoryView::Reactions {
 class CachedIconFactory;
 } // namespace HistoryView::Reactions
@@ -223,6 +227,9 @@ public:
 	[[nodiscard]] Settings::RecentSearches &recentSettingsSearches() const {
 		return *_recentSettingsSearches;
 	}
+	[[nodiscard]] ProSettings::Storage &proStorage() const {
+		return *_proStorage;
+	}
 	[[nodiscard]] auto cachedReactionIconFactory() const
 	-> HistoryView::Reactions::CachedIconFactory & {
 		return *_cachedReactionIconFactory;
@@ -335,6 +342,8 @@ private:
 
 	using ReactionIconFactory = HistoryView::Reactions::CachedIconFactory;
 	const std::unique_ptr<ReactionIconFactory> _cachedReactionIconFactory;
+
+	const std::unique_ptr<ProSettings::Storage> _proStorage;
 
 	const std::unique_ptr<Support::Helper> _supportHelper;
 	const std::unique_ptr<Support::FastButtonsBots> _fastButtonsBots;

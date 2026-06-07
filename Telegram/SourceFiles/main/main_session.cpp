@@ -43,6 +43,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/components/top_peers.h"
 #include "settings/settings_faq_suggestions.h"
 #include "settings/settings_recent_searches.h"
+#include "settings/pro/pro_settings_storage.h"
 #include "data/data_session.h"
 #include "data/data_changes.h"
 #include "data/data_user.h"
@@ -167,6 +168,7 @@ Session::Session(
 , _faqSuggestions(std::make_unique<Settings::FaqSuggestions>(this))
 , _recentSettingsSearches(std::make_unique<Settings::RecentSearches>(this))
 , _cachedReactionIconFactory(std::make_unique<ReactionIconFactory>())
+, _proStorage(std::make_unique<ProSettings::Storage>(this))
 , _supportHelper(Support::Helper::Create(this))
 , _fastButtonsBots(std::make_unique<Support::FastButtonsBots>(this))
 , _saveSettingsTimer([=] { saveSettings(); }) {

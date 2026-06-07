@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "data/data_peer_values.h"
 #include "apiwrap.h"
+#include "settings/pro/pro_settings_storage.h"
 
 namespace Api {
 namespace {
@@ -69,6 +70,13 @@ void SendProgressManager::update(
 		|| (peer->isChannel()
 			&& !peer->isMegagroup()
 			&& type != SendProgressType::Speaking)) {
+		return;
+	}
+
+	const auto &pro = _session->proStorage();
+	if (pro.ghostNoTyping()
+		&& pro.isGhostActiveForPeer(peer->id.value)
+		&& type == SendProgressType::Typing) {
 		return;
 	}
 

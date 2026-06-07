@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_transcribes.h"
 #include "main/main_session.h"
 #include "main/main_account.h"
+#include "settings/pro/pro_settings_storage.h"
 #include "mtproto/mtp_instance.h"
 #include "mtproto/mtproto_config.h"
 #include "mtproto/mtproto_dc_options.h"
@@ -993,6 +994,12 @@ void Updates::updateOnline(crl::time lastNonIdleTime, bool gotOtherOffline) {
 	bool isOnline = Core::App().hasActiveWindow(&session());
 	int updateIn = config.onlineUpdatePeriod;
 	Assert(updateIn >= 0);
+
+	const auto &pro = _session->proStorage();
+	if (pro.ghostNoOnline() && pro.ghostEnabled()) {
+		isOnline = false;
+	}
+
 	if (isOnline) {
 		const auto idle = crl::now() - lastNonIdleTime;
 		if (idle >= config.offlineIdleTimeout) {

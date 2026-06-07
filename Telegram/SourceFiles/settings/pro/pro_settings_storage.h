@@ -31,6 +31,22 @@ public:
 	[[nodiscard]] bool saveDeletedEnabled() const;
 	void setSaveDeletedEnabled(bool enabled);
 
+	[[nodiscard]] bool ghostEnabled() const;
+	void setGhostEnabled(bool enabled);
+	[[nodiscard]] bool ghostNoRead() const;
+	void setGhostNoRead(bool enabled);
+	[[nodiscard]] bool ghostNoOnline() const;
+	void setGhostNoOnline(bool enabled);
+	[[nodiscard]] bool ghostNoTyping() const;
+	void setGhostNoTyping(bool enabled);
+
+	[[nodiscard]] std::vector<uint64> ghostExceptionPeerIds() const;
+	void addGhostException(uint64 peerId);
+	void removeGhostException(uint64 peerId);
+	void clearGhostExceptions();
+
+	[[nodiscard]] bool isGhostActiveForPeer(uint64 peerId) const;
+
 private:
 	void load();
 	void save();
@@ -40,6 +56,12 @@ private:
 	bool _weakWordsEnabled = false;
 	std::vector<uint64> _exceptionPeerIds;
 	bool _saveDeletedEnabled = false;
+
+	bool _ghostEnabled = false;
+	bool _ghostNoRead = false;
+	bool _ghostNoOnline = false;
+	bool _ghostNoTyping = false;
+	std::vector<uint64> _ghostExceptionPeerIds;
 };
 
 } // namespace ProSettings

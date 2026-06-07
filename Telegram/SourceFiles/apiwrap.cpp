@@ -91,6 +91,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/attach/attach_prepare.h"
 #include "ui/toast/toast.h"
 #include "support/support_helper.h"
+#include "settings/pro/pro_settings_storage.h"
 #include "settings/sections/settings_premium.h"
 #include "storage/localimageloader.h"
 #include "storage/download_manager_mtproto.h"
@@ -1368,6 +1369,7 @@ void ApiWrap::migrateFail(not_null<PeerData*> peer, const QString &error) {
 
 void ApiWrap::markContentsRead(
 		const base::flat_set<not_null<HistoryItem*>> &items) {
+	const auto &pro = _session->proStorage();
 	auto markedIds = QVector<MTPint>();
 	auto channelMarkedIds = base::flat_map<
 		not_null<ChannelData*>,
@@ -1375,6 +1377,11 @@ void ApiWrap::markContentsRead(
 	markedIds.reserve(items.size());
 	for (const auto &item : items) {
 		if (!item->markContentsRead(true) || !item->isRegular()) {
+			continue;
+		}
+		if (pro.ghostNoRead()
+			&& pro.isGhostActiveForPeer(
+				item->history()->peer->id.value)) {
 			continue;
 		}
 		if (const auto channel = item->history()->peer->asChannel()) {
@@ -1400,6 +1407,11 @@ void ApiWrap::markContentsRead(
 
 void ApiWrap::markContentsRead(not_null<HistoryItem*> item) {
 	if (!item->markContentsRead(true) || !item->isRegular()) {
+		return;
+	}
+	const auto &pro = _session->proStorage();
+	if (pro.ghostNoRead()
+		&& pro.isGhostActiveForPeer(item->history()->peer->id.value)) {
 		return;
 	}
 	const auto ids = MTP_vector<MTPint>(1, MTP_int(item->id));
