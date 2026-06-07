@@ -144,6 +144,7 @@ jobs:
           key: ${{ runner.OS }}-ccache-${{ env.CCACHE_VER }}-${{ github.run_id }}
           restore-keys: |
             ${{ runner.OS }}-ccache-${{ env.CCACHE_VER }}-
+            ${{ runner.OS }}-ccache-
 
       - name: Restore ccache.
         run: |
