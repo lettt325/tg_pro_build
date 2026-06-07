@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_id.h"
 #include "main/main_session.h"
 #include "ui/platform/ui_platform_utility.h"
-#include "window/main_window.h"
+#include "mainwindow.h"
 #include "window/window_session_controller.h"
 
 #include <QGuiApplication>
