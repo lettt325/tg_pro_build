@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_item_components.h"
+#include "history/history_item_edition.h"
 #include "history/history_streamed_drafts.h"
 #include "history/view/media/history_view_media.h"
 #include "history/view/history_view_element.h"
@@ -2762,7 +2763,27 @@ void Session::updateEditedMessage(const MTPMessage &data) {
 	}, [&](const MTPDmessageService &data) {
 		existing->applyEdition(data);
 	}, [&](const auto &data) {
-		existing->applyEdition(HistoryMessageEdition(_session, data));
+		auto edition = HistoryMessageEdition(_session, data);
+		if (edition.editDate) {
+			auto &pro = _session->proStorage();
+			const auto pid = existing->history()->peer->id.value;
+			if (pro.saveEditsEnabled()
+				&& !ranges::contains(pro.editExceptionPeerIds(), pid)) {
+				if (!pro.hasEditHistory(pid, existing->id.bare)) {
+					pro.addEditVersion(
+						pid,
+						existing->id.bare,
+						existing->originalText().text,
+						int64(existing->date()));
+				}
+				pro.addEditVersion(
+					pid,
+					existing->id.bare,
+					edition.textWithEntities.text,
+					int64(edition.editDate));
+			}
+		}
+		existing->applyEdition(std::move(edition));
 	});
 }
 

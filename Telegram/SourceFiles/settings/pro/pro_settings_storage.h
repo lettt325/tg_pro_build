@@ -84,6 +84,17 @@ public:
 		int64 date = 0;
 	};
 
+	struct EditVersion {
+		QString text;
+		int64 date = 0;
+	};
+
+	void addEditVersion(uint64 peerId, int64 msgId,
+		const QString &text, int64 date);
+	[[nodiscard]] bool hasEditHistory(uint64 peerId, int64 msgId) const;
+	[[nodiscard]] std::vector<EditVersion> editHistory(
+		uint64 peerId, int64 msgId) const;
+
 	void addDeletedMessage(
 		uint64 peerId,
 		int64 msgId,
@@ -109,6 +120,7 @@ private:
 
 	bool _saveEditsEnabled = false;
 	std::vector<uint64> _editExceptionPeerIds;
+	base::flat_map<uint64, base::flat_map<int64, std::vector<EditVersion>>> _editHistory;
 
 	bool _ghostEnabled = false;
 	bool _ghostNoRead = false;

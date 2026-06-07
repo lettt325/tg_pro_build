@@ -99,6 +99,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
+#include "settings/pro/pro_settings_storage.h"
+#include "ui/layers/generic_box.h"
+#include "ui/widgets/labels.h"
 #include "media/audio/media_audio.h"
 #include "media/player/media_player_instance.h"
 #include "spellcheck/spellcheck_types.h"
@@ -1045,6 +1048,72 @@ void AddSelectionAction(
 	}
 }
 
+bool AddEditHistoryAction(
+		not_null<Ui::PopupMenu*> menu,
+		const ContextMenuRequest &request,
+		not_null<ListWidget*> list) {
+	const auto item = request.item;
+	if (!item || !item->isRegular()) {
+		return false;
+	}
+	const auto &pro = item->history()->session().proStorage();
+	const auto pid = item->history()->peer->id.value;
+	const auto mid = item->id.bare;
+	if (!pro.hasEditHistory(pid, mid)) {
+		return false;
+	}
+	const auto controller = list->controller();
+	const auto peerId = pid;
+	const auto msgId = mid;
+	menu->addAction(u"Edit History"_q, crl::guard(controller, [=] {
+		const auto &pro = controller->session().proStorage();
+		const auto versions = pro.editHistory(peerId, msgId);
+		if (versions.empty()) {
+			return;
+		}
+		controller->show(Box([=](not_null<Ui::GenericBox*> box) {
+			box->setTitle(rpl::single(u"Edit History"_q));
+			const auto wrap = box->addRow(
+				object_ptr<Ui::VerticalLayout>(box));
+			for (auto i = 0; i < int(versions.size()); ++i) {
+				const auto &v = versions[i];
+				const auto isOriginal = (i == 0);
+				const auto header = isOriginal
+					? u"Original"_q
+					: u"Edit #%1"_q.arg(i);
+				const auto time = v.date
+					? QDateTime::fromSecsSinceEpoch(
+						v.date).toString(u"dd.MM.yyyy hh:mm"_q)
+					: QString();
+				const auto label = wrap->add(
+					object_ptr<Ui::FlatLabel>(
+						wrap,
+						rpl::single(u"<b>%1</b>  %2"_q
+							.arg(header)
+							.arg(time)),
+						st::boxLabel),
+					QMargins(0, 8, 0, 0));
+				label->setRichText(
+					u"<b>%1</b>  <i>%2</i>"_q
+						.arg(header)
+						.arg(time));
+				wrap->add(
+					object_ptr<Ui::FlatLabel>(
+						wrap,
+						rpl::single(v.text.isEmpty()
+							? u"[media]"_q
+							: v.text),
+						st::boxLabel),
+					QMargins(0, 2, 0, 0));
+			}
+			box->addButton(tr::lng_close(), [=] {
+				box->closeBox();
+			});
+		}));
+	}), &st::menuIconEdit);
+	return true;
+}
+
 void AddTopMessageActions(
 		not_null<Ui::PopupMenu*> menu,
 		const ContextMenuRequest &request,
@@ -1052,6 +1121,7 @@ void AddTopMessageActions(
 	AddGoToMessageAction(menu, request, list);
 	AddViewRepliesAction(menu, request, list);
 	AddEditMessageAction(menu, request, list);
+	AddEditHistoryAction(menu, request, list);
 	AddFactcheckAction(menu, request, list);
 	AddPinMessageAction(menu, request, list);
 }

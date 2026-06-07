@@ -274,6 +274,35 @@ void Storage::setOverlayScreenName(const QString &name) {
 	save();
 }
 
+void Storage::addEditVersion(
+		uint64 peerId,
+		int64 msgId,
+		const QString &text,
+		int64 date) {
+	_editHistory[peerId][msgId].push_back(EditVersion{
+		.text = text,
+		.date = date,
+	});
+	save();
+}
+
+bool Storage::hasEditHistory(uint64 peerId, int64 msgId) const {
+	const auto pi = _editHistory.find(peerId);
+	if (pi == _editHistory.end()) return false;
+	const auto mi = pi->second.find(msgId);
+	return mi != pi->second.end() && !mi->second.empty();
+}
+
+std::vector<Storage::EditVersion> Storage::editHistory(
+		uint64 peerId,
+		int64 msgId) const {
+	const auto pi = _editHistory.find(peerId);
+	if (pi == _editHistory.end()) return {};
+	const auto mi = pi->second.find(msgId);
+	if (mi == pi->second.end()) return {};
+	return mi->second;
+}
+
 void Storage::addDeletedMessage(
 		uint64 peerId,
 		int64 msgId,
@@ -372,6 +401,27 @@ void Storage::load() {
 		}
 	}
 
+	_editHistory.clear();
+	const auto eh = obj.value("editHistory").toObject();
+	for (auto pi = eh.begin(); pi != eh.end(); ++pi) {
+		const auto peer = static_cast<uint64>(pi.key().toDouble());
+		if (!peer) continue;
+		auto &peerMap = _editHistory[peer];
+		const auto msgs = pi.value().toObject();
+		for (auto mi = msgs.begin(); mi != msgs.end(); ++mi) {
+			const auto msgId = static_cast<int64>(mi.key().toDouble());
+			if (!msgId) continue;
+			auto &versions = peerMap[msgId];
+			for (const auto &v : mi.value().toArray()) {
+				const auto o = v.toObject();
+				versions.push_back(EditVersion{
+					.text = o.value("t").toString(),
+					.date = static_cast<int64>(o.value("d").toDouble()),
+				});
+			}
+		}
+	}
+
 	_ghostEnabled = obj.value("ghostEnabled").toBool();
 	_ghostNoRead = obj.value("ghostNoRead").toBool();
 	_ghostNoOnline = obj.value("ghostNoOnline").toBool();
@@ -445,6 +495,25 @@ void Storage::save() {
 		editExceptions.append(static_cast<double>(id));
 	}
 	obj["editExceptions"] = editExceptions;
+
+	if (!_editHistory.empty()) {
+		auto eh = QJsonObject();
+		for (const auto &[peer, msgs] : _editHistory) {
+			auto mo = QJsonObject();
+			for (const auto &[msgId, versions] : msgs) {
+				auto arr = QJsonArray();
+				for (const auto &v : versions) {
+					auto o = QJsonObject();
+					o["t"] = v.text;
+					o["d"] = static_cast<double>(v.date);
+					arr.append(o);
+				}
+				mo[QString::number(msgId)] = arr;
+			}
+			eh[QString::number(peer)] = mo;
+		}
+		obj["editHistory"] = eh;
+	}
 
 	obj["ghostEnabled"] = _ghostEnabled;
 	obj["ghostNoRead"] = _ghostNoRead;
