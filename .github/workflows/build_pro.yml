@@ -175,6 +175,7 @@ jobs:
           CCACHE_COMPILERCHECK: "string:${{ env.CCACHE_COMPILER_STRING }}"
           CCACHE_NOHASHDIR: "true"
           SPARKLE_ED25519_PUBLIC_KEY: ${{ secrets.SPARKLE_ED25519_PUBLIC_KEY }}
+          TGPRO_BUILD_NUMBER: ${{ github.run_number }}
         run: |
           cd $REPO_NAME
           export CMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH$(find $LibrariesPath/local -mindepth 1 -maxdepth 1 -type d -exec printf ':%s' {} +)"
@@ -230,10 +231,11 @@ jobs:
           fi
           SIGNATURE=$(echo "$SPARKLE_PRIVATE_KEY" | "$SIGN_TOOL" --ed-key-file - build/TGPro.dmg)
           VERSION=$(grep 'AppVersionStrSmall' Telegram/build/version 2>/dev/null | awk '{print $2}' || echo "0.0.0")
+          BUILD_VER="${VERSION}.${{ github.run_number }}"
           PUBDATE=$(date -R)
-          printf '<?xml version="1.0" encoding="utf-8"?>\n<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">\n  <channel>\n    <title>TGPro Updates</title>\n    <item>\n      <title>TGPro %s</title>\n      <sparkle:version>%s</sparkle:version>\n      <sparkle:shortVersionString>%s</sparkle:shortVersionString>\n      <pubDate>%s</pubDate>\n      <enclosure\n        url="https://github.com/tgprodev/tg_pro_build/releases/download/nightly/TGPro.dmg"\n        %s\n        type="application/octet-stream" />\n    </item>\n  </channel>\n</rss>\n' \
-            "$VERSION" "$VERSION" "$VERSION" "$PUBDATE" "$SIGNATURE" > appcast.xml
-          echo "Generated appcast.xml for version $VERSION"
+          printf '<?xml version="1.0" encoding="utf-8"?>\n<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">\n  <channel>\n    <title>TGPro Updates</title>\n    <item>\n      <title>TGPro %s (build %s)</title>\n      <sparkle:version>%s</sparkle:version>\n      <sparkle:shortVersionString>%s</sparkle:shortVersionString>\n      <pubDate>%s</pubDate>\n      <enclosure\n        url="https://github.com/tgprodev/tg_pro_build/releases/download/nightly/TGPro.dmg"\n        %s\n        type="application/octet-stream" />\n    </item>\n  </channel>\n</rss>\n' \
+            "$VERSION" "${{ github.run_number }}" "$BUILD_VER" "$VERSION" "$PUBDATE" "$SIGNATURE" > appcast.xml
+          echo "Generated appcast.xml: version=$BUILD_VER display=$VERSION"
           git config user.name "tgpro-ci"
           git config user.email "ci@tgpro.dev"
           git add appcast.xml

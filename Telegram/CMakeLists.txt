@@ -2171,6 +2171,12 @@ else()
     set(output_name "TGPro")
 endif()
 
+if (DEFINED ENV{TGPRO_BUILD_NUMBER})
+    set(TGPRO_BUNDLE_VERSION "${desktop_app_version_string}.$ENV{TGPRO_BUILD_NUMBER}")
+else()
+    set(TGPRO_BUNDLE_VERSION "${desktop_app_version_string}")
+endif()
+
 if (DEFINED ENV{SPARKLE_ED25519_PUBLIC_KEY})
     set(SPARKLE_ED25519_PUBLIC_KEY "$ENV{SPARKLE_ED25519_PUBLIC_KEY}")
 elseif (NOT DEFINED SPARKLE_ED25519_PUBLIC_KEY)
