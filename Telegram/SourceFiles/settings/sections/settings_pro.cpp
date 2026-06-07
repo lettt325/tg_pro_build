@@ -48,6 +48,8 @@ struct ProState {
 	rpl::variable<std::vector<QString>> weakWords;
 	base::flat_set<not_null<PeerData*>> ghostExceptions;
 	rpl::variable<int> ghostExceptionsCount = 0;
+	base::flat_set<not_null<PeerData*>> editExceptions;
+	rpl::variable<int> editExceptionsCount = 0;
 };
 
 void InitProState(ProState *state, not_null<Main::Session*> session) {
@@ -72,6 +74,15 @@ void InitProState(ProState *state, not_null<Main::Session*> session) {
 		}
 	}
 	state->ghostExceptionsCount = int(state->ghostExceptions.size());
+
+	for (const auto &id : state->storage->editExceptionPeerIds()) {
+		const auto peerId = PeerId(id);
+		if (peerId) {
+			const auto peer = session->data().peer(peerId);
+			state->editExceptions.emplace(peer);
+		}
+	}
+	state->editExceptionsCount = int(state->editExceptions.size());
 }
 
 class GenericExceptionsController final : public PeerListController {
@@ -248,9 +259,118 @@ void BuildSaveDeletedSection(SectionBuilder &builder, ProState *state) {
 				.keywords = { u"exceptions"_q, u"add"_q, u"chats"_q },
 			});
 		}
+
+		const auto botsToggle = builder.addButton({
+			.id = u"pro/save_deleted/bots"_q,
+			.title = rpl::single(u"Save in bots?"_q),
+			.st = &st::settingsButtonNoIcon,
+			.toggled = rpl::single(
+				state ? state->storage->saveDeletedInBotsEnabled() : false),
+			.keywords = { u"bots"_q, u"deleted"_q },
+		});
+
+		if (botsToggle && state) {
+			botsToggle->toggledChanges(
+			) | rpl::on_next([=](bool enabled) {
+				state->storage->setSaveDeletedInBotsEnabled(enabled);
+			}, botsToggle->lifetime());
+		}
 	}, toggle ? toggle->toggledValue() : nullptr);
 
 	builder.addDividerText(rpl::single(u"When enabled, messages deleted by other users will be preserved locally. Use Exceptions to exclude specific chats."_q));
+
+	builder.addSkip();
+	builder.addSubsectionTitle(rpl::single(u"Edit History"_q));
+
+	const auto editToggle = builder.addButton({
+		.id = u"pro/save_edits"_q,
+		.title = rpl::single(u"Save edit history"_q),
+		.st = &st::settingsButtonNoIcon,
+		.toggled = rpl::single(
+			state ? state->storage->saveEditsEnabled() : false),
+		.keywords = { u"edit"_q, u"history"_q, u"save"_q },
+	});
+
+	if (editToggle && state) {
+		editToggle->toggledChanges(
+		) | rpl::on_next([=](bool enabled) {
+			state->storage->setSaveEditsEnabled(enabled);
+		}, editToggle->lifetime());
+	}
+
+	builder.scope([&] {
+		struct EditExceptionsState {
+			std::unique_ptr<GenericExceptionsController> controller;
+			std::unique_ptr<PeerListContentDelegateSimple> delegate;
+		};
+
+		const auto inner = builder.container();
+		GenericExceptionsController *editExceptionsCtrl = nullptr;
+
+		if (inner && controller && state) {
+			auto listController = std::make_unique<GenericExceptionsController>(
+				&controller->session(),
+				&state->editExceptions,
+				&state->editExceptionsCount,
+				[=](uint64 id) { state->storage->addEditException(id); },
+				[=](uint64 id) { state->storage->removeEditException(id); });
+			listController->setStyleOverrides(&st::settingsBlockedList);
+			editExceptionsCtrl = listController.get();
+
+			builder.addButton({
+				.id = u"pro/save_edits/add_exception"_q,
+				.title = rpl::single(u"Add exception"_q),
+				.icon = { &st::menuIconInviteSettings },
+				.onClick = [=] {
+					auto pickerController = std::make_unique<
+						ChooseRecipientBoxController>(
+						ChooseRecipientArgs{
+							.session = &controller->session(),
+							.callback = [=](
+									not_null<Data::Thread*> thread) {
+								editExceptionsCtrl->addPeer(
+									thread->peer());
+							},
+							.filter = [=](
+									not_null<Data::Thread*> thread) {
+								return !state->editExceptions.contains(
+									thread->peer());
+							},
+						});
+					controller->show(Box<PeerListBox>(
+						std::move(pickerController),
+						[](not_null<PeerListBox*> box) {
+							box->addButton(
+								tr::lng_cancel(),
+								[=] { box->closeBox(); });
+						}));
+				},
+				.keywords = { u"exceptions"_q, u"add"_q },
+			});
+
+			const auto content = inner->add(
+				object_ptr<PeerListContent>(
+					inner,
+					listController.get()));
+
+			const auto es = content->lifetime().make_state<
+				EditExceptionsState>();
+			es->controller = std::move(listController);
+			es->delegate = std::make_unique<
+				PeerListContentDelegateSimple>();
+			es->delegate->setContent(content);
+			es->controller->setDelegate(es->delegate.get());
+		} else {
+			builder.addButton({
+				.id = u"pro/save_edits/add_exception"_q,
+				.title = rpl::single(u"Add exception"_q),
+				.icon = { &st::menuIconInviteSettings },
+				.keywords = { u"exceptions"_q, u"add"_q },
+			});
+		}
+	}, editToggle ? editToggle->toggledValue() : nullptr);
+
+	builder.addDividerText(rpl::single(u"When enabled, previous versions of edited messages will be preserved locally. Use Exceptions to exclude specific chats."_q));
 }
 
 void ShowEditWeakWordsBox(

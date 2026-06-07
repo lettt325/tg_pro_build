@@ -99,6 +99,46 @@ void Storage::setSaveDeletedEnabled(bool enabled) {
 	save();
 }
 
+bool Storage::saveDeletedInBotsEnabled() const {
+	return _saveDeletedInBots;
+}
+
+void Storage::setSaveDeletedInBotsEnabled(bool enabled) {
+	_saveDeletedInBots = enabled;
+	save();
+}
+
+bool Storage::saveEditsEnabled() const {
+	return _saveEditsEnabled;
+}
+
+void Storage::setSaveEditsEnabled(bool enabled) {
+	_saveEditsEnabled = enabled;
+	save();
+}
+
+std::vector<uint64> Storage::editExceptionPeerIds() const {
+	return _editExceptionPeerIds;
+}
+
+void Storage::addEditException(uint64 peerId) {
+	if (ranges::contains(_editExceptionPeerIds, peerId)) {
+		return;
+	}
+	_editExceptionPeerIds.push_back(peerId);
+	save();
+}
+
+void Storage::removeEditException(uint64 peerId) {
+	_editExceptionPeerIds.erase(
+		std::remove(
+			_editExceptionPeerIds.begin(),
+			_editExceptionPeerIds.end(),
+			peerId),
+		_editExceptionPeerIds.end());
+	save();
+}
+
 bool Storage::ghostEnabled() const {
 	return _ghostEnabled;
 }
@@ -304,6 +344,8 @@ void Storage::load() {
 
 	_weakWordsEnabled = obj.value("weakWordsEnabled").toBool();
 	_saveDeletedEnabled = obj.value("saveDeletedEnabled").toBool();
+	_saveDeletedInBots = obj.value("saveDeletedInBots").toBool();
+	_saveEditsEnabled = obj.value("saveEditsEnabled").toBool();
 
 	if (obj.contains("weakWords")) {
 		_weakWords.clear();
@@ -319,6 +361,14 @@ void Storage::load() {
 		const auto id = static_cast<uint64>(v.toDouble());
 		if (id) {
 			_exceptionPeerIds.push_back(id);
+		}
+	}
+
+	_editExceptionPeerIds.clear();
+	for (const auto &v : obj.value("editExceptions").toArray()) {
+		const auto id = static_cast<uint64>(v.toDouble());
+		if (id) {
+			_editExceptionPeerIds.push_back(id);
 		}
 	}
 
@@ -375,6 +425,8 @@ void Storage::save() {
 	auto obj = QJsonObject();
 	obj["weakWordsEnabled"] = _weakWordsEnabled;
 	obj["saveDeletedEnabled"] = _saveDeletedEnabled;
+	obj["saveDeletedInBots"] = _saveDeletedInBots;
+	obj["saveEditsEnabled"] = _saveEditsEnabled;
 
 	auto words = QJsonArray();
 	for (const auto &w : _weakWords) {
@@ -387,6 +439,12 @@ void Storage::save() {
 		exceptions.append(static_cast<double>(id));
 	}
 	obj["exceptions"] = exceptions;
+
+	auto editExceptions = QJsonArray();
+	for (const auto &id : _editExceptionPeerIds) {
+		editExceptions.append(static_cast<double>(id));
+	}
+	obj["editExceptions"] = editExceptions;
 
 	obj["ghostEnabled"] = _ghostEnabled;
 	obj["ghostNoRead"] = _ghostNoRead;

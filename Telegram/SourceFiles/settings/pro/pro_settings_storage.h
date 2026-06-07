@@ -34,6 +34,14 @@ public:
 	void clearExceptions();
 	[[nodiscard]] bool saveDeletedEnabled() const;
 	void setSaveDeletedEnabled(bool enabled);
+	[[nodiscard]] bool saveDeletedInBotsEnabled() const;
+	void setSaveDeletedInBotsEnabled(bool enabled);
+
+	[[nodiscard]] bool saveEditsEnabled() const;
+	void setSaveEditsEnabled(bool enabled);
+	[[nodiscard]] std::vector<uint64> editExceptionPeerIds() const;
+	void addEditException(uint64 peerId);
+	void removeEditException(uint64 peerId);
 
 	[[nodiscard]] bool ghostEnabled() const;
 	void setGhostEnabled(bool enabled);
@@ -97,6 +105,10 @@ private:
 	bool _weakWordsEnabled = false;
 	std::vector<uint64> _exceptionPeerIds;
 	bool _saveDeletedEnabled = false;
+	bool _saveDeletedInBots = false;
+
+	bool _saveEditsEnabled = false;
+	std::vector<uint64> _editExceptionPeerIds;
 
 	bool _ghostEnabled = false;
 	bool _ghostNoRead = false;
