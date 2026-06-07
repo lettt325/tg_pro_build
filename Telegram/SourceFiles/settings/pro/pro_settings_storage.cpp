@@ -132,6 +132,24 @@ void Storage::setGhostNoTyping(bool enabled) {
 	save();
 }
 
+bool Storage::ghostReadOnInteract() const {
+	return _ghostReadOnInteract;
+}
+
+void Storage::setGhostReadOnInteract(bool enabled) {
+	_ghostReadOnInteract = enabled;
+	save();
+}
+
+bool Storage::ghostInstantOnline() const {
+	return _ghostInstantOnline;
+}
+
+void Storage::setGhostInstantOnline(bool enabled) {
+	_ghostInstantOnline = enabled;
+	save();
+}
+
 std::vector<uint64> Storage::ghostExceptionPeerIds() const {
 	return _ghostExceptionPeerIds;
 }
@@ -167,6 +185,20 @@ bool Storage::isGhostActiveForPeer(uint64 peerId) const {
 		return false;
 	}
 	return true;
+}
+
+void Storage::markPeerInteracted(uint64 peerId) {
+	if (peerId) {
+		_ghostInteractedPeers.emplace(peerId);
+	}
+}
+
+bool Storage::consumePeerInteracted(uint64 peerId) {
+	return peerId && _ghostInteractedPeers.remove(peerId);
+}
+
+bool Storage::hasAnyInteracted() const {
+	return !_ghostInteractedPeers.empty();
 }
 
 void Storage::load() {
@@ -206,6 +238,8 @@ void Storage::load() {
 	_ghostNoRead = obj.value("ghostNoRead").toBool();
 	_ghostNoOnline = obj.value("ghostNoOnline").toBool();
 	_ghostNoTyping = obj.value("ghostNoTyping").toBool();
+	_ghostReadOnInteract = obj.value("ghostReadOnInteract").toBool();
+	_ghostInstantOnline = obj.value("ghostInstantOnline").toBool();
 
 	_ghostExceptionPeerIds.clear();
 	for (const auto &v : obj.value("ghostExceptions").toArray()) {
@@ -237,6 +271,8 @@ void Storage::save() {
 	obj["ghostNoRead"] = _ghostNoRead;
 	obj["ghostNoOnline"] = _ghostNoOnline;
 	obj["ghostNoTyping"] = _ghostNoTyping;
+	obj["ghostReadOnInteract"] = _ghostReadOnInteract;
+	obj["ghostInstantOnline"] = _ghostInstantOnline;
 
 	auto ghostExceptions = QJsonArray();
 	for (const auto &id : _ghostExceptionPeerIds) {

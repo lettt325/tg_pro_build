@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/basic_types.h"
+#include "base/flat_map.h"
 
 #include <vector>
 
@@ -39,6 +40,10 @@ public:
 	void setGhostNoOnline(bool enabled);
 	[[nodiscard]] bool ghostNoTyping() const;
 	void setGhostNoTyping(bool enabled);
+	[[nodiscard]] bool ghostReadOnInteract() const;
+	void setGhostReadOnInteract(bool enabled);
+	[[nodiscard]] bool ghostInstantOnline() const;
+	void setGhostInstantOnline(bool enabled);
 
 	[[nodiscard]] std::vector<uint64> ghostExceptionPeerIds() const;
 	void addGhostException(uint64 peerId);
@@ -46,6 +51,10 @@ public:
 	void clearGhostExceptions();
 
 	[[nodiscard]] bool isGhostActiveForPeer(uint64 peerId) const;
+
+	void markPeerInteracted(uint64 peerId);
+	[[nodiscard]] bool consumePeerInteracted(uint64 peerId);
+	[[nodiscard]] bool hasAnyInteracted() const;
 
 private:
 	void load();
@@ -61,7 +70,10 @@ private:
 	bool _ghostNoRead = false;
 	bool _ghostNoOnline = false;
 	bool _ghostNoTyping = false;
+	bool _ghostReadOnInteract = false;
+	bool _ghostInstantOnline = false;
 	std::vector<uint64> _ghostExceptionPeerIds;
+	base::flat_set<uint64> _ghostInteractedPeers;
 };
 
 } // namespace ProSettings

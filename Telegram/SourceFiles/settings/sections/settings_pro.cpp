@@ -405,9 +405,9 @@ void BuildGhostModeSection(
 		.title = ghost
 			? ghost->enabledCount.value(
 			) | rpl::map([](int count) {
-				return u"Ghost Mode (%1/3)"_q.arg(count);
+				return u"Ghost Mode (%1/5)"_q.arg(count);
 			}) | rpl::type_erased
-			: rpl::single(u"Ghost Mode (0/3)"_q) | rpl::type_erased,
+			: rpl::single(u"Ghost Mode (0/5)"_q) | rpl::type_erased,
 		.icon = { &st::menuIconLock },
 		.toggled = rpl::single(
 			state ? state->storage->ghostEnabled() : false),
@@ -426,6 +426,8 @@ void BuildGhostModeSection(
 			Ui::SettingsButton *readReceipts = nullptr;
 			Ui::SettingsButton *online = nullptr;
 			Ui::SettingsButton *typing = nullptr;
+			Ui::SettingsButton *readOnInteract = nullptr;
+			Ui::SettingsButton *instantOnline = nullptr;
 		};
 		const auto subs = container
 			? container->lifetime().make_state<SubToggles>()
@@ -458,6 +460,24 @@ void BuildGhostModeSection(
 			.keywords = { u"typing"_q, u"ghost"_q },
 		});
 
+		subs->readOnInteract = builder.addButton({
+			.id = u"pro/ghost/read_on_interact"_q,
+			.title = rpl::single(u"Mark read on interaction"_q),
+			.st = &st::settingsButtonNoIcon,
+			.toggled = rpl::single(
+				state ? state->storage->ghostReadOnInteract() : false),
+			.keywords = { u"read"_q, u"interact"_q, u"ghost"_q },
+		});
+
+		subs->instantOnline = builder.addButton({
+			.id = u"pro/ghost/instant_online"_q,
+			.title = rpl::single(u"Instant online after offline"_q),
+			.st = &st::settingsButtonNoIcon,
+			.toggled = rpl::single(
+				state ? state->storage->ghostInstantOnline() : false),
+			.keywords = { u"instant"_q, u"online"_q, u"ghost"_q },
+		});
+
 		if (state && subs->readReceipts) {
 			subs->readReceipts->toggledChanges(
 			) | rpl::on_next([=](bool v) {
@@ -473,15 +493,27 @@ void BuildGhostModeSection(
 			) | rpl::on_next([=](bool v) {
 				state->storage->setGhostNoTyping(v);
 			}, subs->typing->lifetime());
+
+			subs->readOnInteract->toggledChanges(
+			) | rpl::on_next([=](bool v) {
+				state->storage->setGhostReadOnInteract(v);
+			}, subs->readOnInteract->lifetime());
+
+			subs->instantOnline->toggledChanges(
+			) | rpl::on_next([=](bool v) {
+				state->storage->setGhostInstantOnline(v);
+			}, subs->instantOnline->lifetime());
 		}
 
 		if (ghost && subs->readReceipts) {
 			rpl::combine(
 				subs->readReceipts->toggledValue(),
 				subs->online->toggledValue(),
-				subs->typing->toggledValue()
-			) | rpl::map([](bool a, bool b, bool c) {
-				return int(a) + int(b) + int(c);
+				subs->typing->toggledValue(),
+				subs->readOnInteract->toggledValue(),
+				subs->instantOnline->toggledValue()
+			) | rpl::map([](bool a, bool b, bool c, bool d, bool e) {
+				return int(a) + int(b) + int(c) + int(d) + int(e);
 			}) | rpl::on_next([=](int count) {
 				ghost->enabledCount = count;
 			}, container->lifetime());

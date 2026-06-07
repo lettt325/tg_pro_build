@@ -3472,6 +3472,17 @@ void ApiWrap::sendAction(const SendAction &action) {
 	if (!action.options.scheduled
 		&& !action.options.shortcutId
 		&& !action.replaceMediaOf) {
+		auto &pro = _session->proStorage();
+		if (pro.isGhostActiveForPeer(action.history->peer->id.value)) {
+			if (pro.ghostReadOnInteract() && pro.ghostNoRead()) {
+				pro.markPeerInteracted(
+					action.history->peer->id.value);
+			}
+			if (pro.ghostInstantOnline() && pro.ghostNoOnline()) {
+				pro.markPeerInteracted(
+					action.history->peer->id.value);
+			}
+		}
 		const auto topicRootId = action.replyTo.topicRootId;
 		const auto topic = topicRootId
 			? action.history->peer->forumTopicFor(topicRootId)

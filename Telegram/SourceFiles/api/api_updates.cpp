@@ -997,7 +997,11 @@ void Updates::updateOnline(crl::time lastNonIdleTime, bool gotOtherOffline) {
 
 	const auto &pro = _session->proStorage();
 	if (pro.ghostNoOnline() && pro.ghostEnabled()) {
-		isOnline = false;
+		const auto allowOnline = pro.ghostInstantOnline()
+			&& pro.hasAnyInteracted();
+		if (!allowOnline) {
+			isOnline = false;
+		}
 	}
 
 	if (isOnline) {
