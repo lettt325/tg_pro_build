@@ -234,8 +234,17 @@ void Storage::setOverlayScreenName(const QString &name) {
 	save();
 }
 
-void Storage::addDeletedMessage(uint64 peerId, int64 msgId) {
-	_deletedMessages[peerId].emplace(msgId);
+void Storage::addDeletedMessage(
+		uint64 peerId,
+		int64 msgId,
+		const QString &text,
+		const QString &from,
+		int64 date) {
+	_deletedMessages[peerId].emplace(msgId, DeletedMsg{
+		.text = text,
+		.from = from,
+		.date = date,
+	});
 	save();
 }
 
@@ -340,11 +349,23 @@ void Storage::load() {
 	for (auto it = dm.begin(); it != dm.end(); ++it) {
 		const auto peer = static_cast<uint64>(it.key().toDouble());
 		if (!peer) continue;
-		auto &set = _deletedMessages[peer];
+		auto &map = _deletedMessages[peer];
 		for (const auto &v : it.value().toArray()) {
-			const auto msg = static_cast<int64>(v.toDouble());
-			if (msg) {
-				set.emplace(msg);
+			if (v.isObject()) {
+				const auto o = v.toObject();
+				const auto id = static_cast<int64>(o.value("id").toDouble());
+				if (id) {
+					map.emplace(id, DeletedMsg{
+						.text = o.value("t").toString(),
+						.from = o.value("f").toString(),
+						.date = static_cast<int64>(o.value("d").toDouble()),
+					});
+				}
+			} else {
+				const auto id = static_cast<int64>(v.toDouble());
+				if (id) {
+					map.emplace(id, DeletedMsg{});
+				}
 			}
 		}
 	}
@@ -393,8 +414,19 @@ void Storage::save() {
 		auto dm = QJsonObject();
 		for (const auto &[peer, msgs] : _deletedMessages) {
 			auto arr = QJsonArray();
-			for (const auto &msg : msgs) {
-				arr.append(static_cast<double>(msg));
+			for (const auto &[id, info] : msgs) {
+				auto o = QJsonObject();
+				o["id"] = static_cast<double>(id);
+				if (!info.text.isEmpty()) {
+					o["t"] = info.text;
+				}
+				if (!info.from.isEmpty()) {
+					o["f"] = info.from;
+				}
+				if (info.date) {
+					o["d"] = static_cast<double>(info.date);
+				}
+				arr.append(o);
 			}
 			dm[QString::number(peer)] = arr;
 		}
