@@ -16,7 +16,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "ui/layers/generic_box.h"
-#include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/labels.h"
@@ -36,40 +35,25 @@ InnerWidget::InnerWidget(
 	QWidget *parent,
 	not_null<Controller*> controller,
 	not_null<PeerData*> peer)
-: RpWidget(parent)
+: VerticalLayout(parent)
 , _controller(controller)
-, _peer(peer)
-, _content(Ui::CreateChild<Ui::VerticalLayout>(this)) {
+, _peer(peer) {
 	setupTabs();
 	setupFragmentsTab();
 	setupAiTab();
 
 	_aiWrap->toggle(false, anim::type::instant);
-
-	_content->heightValue(
-	) | rpl::on_next([this](int) {
-		resizeToWidth(width());
-	}, lifetime());
-}
-
-rpl::producer<int> InnerWidget::desiredHeightValue() const {
-	return _content->heightValue();
-}
-
-void InnerWidget::resizeEvent(QResizeEvent *e) {
-	_content->resizeToWidth(width());
-	_content->moveToLeft(0, 0);
 }
 
 void InnerWidget::setupTabs() {
-	_fragmentsTab = _content->add(
+	_fragmentsTab = add(
 		object_ptr<Ui::SettingsButton>(
-			_content,
+			this,
 			rpl::single(u"Fragments"_q),
 			st::infoSharedMediaButton));
-	_aiTab = _content->add(
+	_aiTab = add(
 		object_ptr<Ui::SettingsButton>(
-			_content,
+			this,
 			rpl::single(u"AI Assistant"_q),
 			st::infoSharedMediaButton));
 
@@ -86,10 +70,10 @@ void InnerWidget::setupTabs() {
 }
 
 void InnerWidget::setupFragmentsTab() {
-	_fragmentsWrap = _content->add(
+	_fragmentsWrap = add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-			_content,
-			object_ptr<Ui::VerticalLayout>(_content)));
+			this,
+			object_ptr<Ui::VerticalLayout>(this)));
 	const auto container = _fragmentsWrap->entity();
 
 	const auto addBtn = container->add(
@@ -119,10 +103,10 @@ void InnerWidget::refreshFragments() {
 			object_ptr<Ui::FlatLabel>(
 				_fragmentsList,
 				rpl::single(u"No memories saved yet.\n"
-					"Right-click a message → Save to Memory."_q),
+					"Right-click a message and tap Save to Memory."_q),
 				st::boxLabel),
 			QMargins(16, 12, 16, 12));
-		_fragmentsList->resizeToWidth(_fragmentsList->width());
+		_fragmentsList->resizeToWidth(width());
 		return;
 	}
 
@@ -180,7 +164,7 @@ void InnerWidget::refreshFragments() {
 		wrap->add(object_ptr<Ui::FixedHeightWidget>(wrap, 1));
 	}
 
-	_fragmentsList->resizeToWidth(_fragmentsList->width());
+	_fragmentsList->resizeToWidth(width());
 }
 
 void InnerWidget::addManualEntry() {
@@ -225,10 +209,10 @@ void InnerWidget::addManualEntry() {
 }
 
 void InnerWidget::setupAiTab() {
-	_aiWrap = _content->add(
+	_aiWrap = add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-			_content,
-			object_ptr<Ui::VerticalLayout>(_content)));
+			this,
+			object_ptr<Ui::VerticalLayout>(this)));
 	const auto container = _aiWrap->entity();
 
 	_aiInput = container->add(
@@ -267,7 +251,7 @@ void InnerWidget::sendAiQuery() {
 					u"Please set DeepSeek API token in Pro Settings."_q),
 				st::boxLabel),
 			QMargins(16, 8, 16, 8));
-		_aiResults->resizeToWidth(_aiResults->width());
+		_aiResults->resizeToWidth(width());
 		return;
 	}
 
@@ -309,7 +293,7 @@ void InnerWidget::sendAiQuery() {
 			rpl::single(u"Thinking..."_q),
 			st::boxLabel),
 		QMargins(16, 8, 16, 8));
-	_aiResults->resizeToWidth(_aiResults->width());
+	_aiResults->resizeToWidth(width());
 
 	const auto guard = QPointer<InnerWidget>(this);
 	_aiClient->chat(systemPrompt, messages,
@@ -335,8 +319,7 @@ void InnerWidget::sendAiQuery() {
 				QMargins(16, 8, 16, 8));
 			label->setSelectable(true);
 		}
-		self->_aiResults->resizeToWidth(
-			self->_aiResults->width());
+		self->_aiResults->resizeToWidth(self->width());
 	});
 }
 

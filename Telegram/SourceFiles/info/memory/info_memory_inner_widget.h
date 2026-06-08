@@ -7,13 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/rp_widget.h"
-#include "ui/widgets/scroll_area.h"
+#include "ui/wrap/vertical_layout.h"
 
 #include <memory>
 
 namespace Ui {
-class VerticalLayout;
 class FlatLabel;
 class InputField;
 class RoundButton;
@@ -34,7 +32,7 @@ namespace Info::Memory {
 
 class Memento;
 
-class InnerWidget final : public Ui::RpWidget {
+class InnerWidget final : public Ui::VerticalLayout {
 public:
 	InnerWidget(
 		QWidget *parent,
@@ -44,11 +42,6 @@ public:
 	[[nodiscard]] not_null<PeerData*> peer() const {
 		return _peer;
 	}
-
-	[[nodiscard]] rpl::producer<int> desiredHeightValue() const override;
-
-protected:
-	void resizeEvent(QResizeEvent *e) override;
 
 private:
 	void setupTabs();
@@ -61,7 +54,6 @@ private:
 	not_null<Controller*> _controller;
 	not_null<PeerData*> _peer;
 
-	Ui::VerticalLayout *_content = nullptr;
 	Ui::SettingsButton *_fragmentsTab = nullptr;
 	Ui::SettingsButton *_aiTab = nullptr;
 	Ui::SlideWrap<Ui::VerticalLayout> *_fragmentsWrap = nullptr;
