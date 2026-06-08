@@ -780,26 +780,43 @@ void BuildAIMemorySection(SectionBuilder &builder, ProState *state) {
 		.onClick = [=] {
 			if (!controller || !state) return;
 			controller->show(Box([=](not_null<Ui::GenericBox*> box) {
-				box->setTitle(rpl::single(u"Select AI Model"_q));
-				const auto models = std::vector<QString>{
+				box->setTitle(rpl::single(u"AI Model"_q));
+				const auto field = box->addRow(
+					object_ptr<Ui::InputField>(
+						box,
+						st::defaultInputField,
+						rpl::single(u"Model name..."_q),
+						state->storage->deepseekModel()));
+				box->addRow(
+					object_ptr<Ui::FlatLabel>(
+						box,
+						rpl::single(u"Presets:"_q),
+						st::boxLabel),
+					QMargins(0, 12, 0, 4));
+				const auto presets = std::vector<QString>{
 					u"deepseek-chat"_q,
 					u"deepseek-reasoner"_q,
 				};
-				for (const auto &model : models) {
-					const auto current =
-						(model == state->storage->deepseekModel());
-					const auto label = (current ? u"✓ "_q : u"   "_q)
-						+ model;
+				for (const auto &model : presets) {
 					box->addRow(
 						object_ptr<Ui::SettingsButton>(
 							box,
-							rpl::single(label),
+							rpl::single(model),
 							st::settingsButtonNoIcon)
 					)->setClickedCallback([=] {
-						state->storage->setDeepseekModel(model);
-						box->closeBox();
+						field->setText(model);
 					});
 				}
+				box->addButton(
+					rpl::single(u"Save"_q),
+					[=] {
+						const auto model =
+							field->getLastText().trimmed();
+						if (!model.isEmpty()) {
+							state->storage->setDeepseekModel(model);
+						}
+						box->closeBox();
+					});
 				box->addButton(tr::lng_cancel(), [=] {
 					box->closeBox();
 				});

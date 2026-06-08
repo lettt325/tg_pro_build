@@ -421,24 +421,23 @@ object_ptr<Ui::SlideWrap<Ui::RpWidget>> InnerWidget::setupSharedMedia(
 		&& peer->session().proStorage().aiMemoryEnabled()) {
 		const auto memoryCount = peer->session().memoryStorage()
 			.entryCount(peer->id.value);
-		auto memoryBtn = Media::AddCountedButton(
-			content,
-			rpl::single(memoryCount),
-			[](int count) {
-				return u"Memory"_q
-					+ (count > 0
-						? (u" ("_q + QString::number(count) + u")"_q)
-						: QString());
-			},
-			tracker);
-		memoryBtn->entity()->setClickedCallback([=] {
+		const auto label = u"Memory"_q
+			+ (memoryCount > 0
+				? (u" ("_q + QString::number(memoryCount) + u")"_q)
+				: QString());
+		const auto memoryBtn = content->add(
+			object_ptr<Ui::SettingsButton>(
+				content,
+				rpl::single(label),
+				st::infoSharedMediaButton));
+		memoryBtn->setClickedCallback([=] {
 			_controller->showSection(
 				std::make_shared<Info::Memento>(
 					peer,
 					Info::Section(Info::Section::Type::Memory)));
 		});
 		object_ptr<Profile::FloatingIcon>(
-			memoryBtn->entity(),
+			memoryBtn,
 			st::infoIconMediaLink,
 			st::infoSharedMediaButtonIconPosition);
 	}
