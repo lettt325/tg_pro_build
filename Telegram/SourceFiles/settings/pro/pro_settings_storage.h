@@ -113,6 +113,8 @@ public:
 	void setDeepseekApiToken(const QString &token);
 	[[nodiscard]] QString deepseekModel() const;
 	void setDeepseekModel(const QString &model);
+	[[nodiscard]] bool aiThinkingEnabled() const;
+	void setAiThinkingEnabled(bool enabled);
 	[[nodiscard]] QString aiSystemPrompt() const;
 	void setAiSystemPrompt(const QString &prompt);
 
@@ -154,7 +156,8 @@ private:
 
 	bool _aiMemoryEnabled = false;
 	QString _deepseekApiToken;
-	QString _deepseekModel = u"deepseek-chat"_q;
+	QString _deepseekModel = u"deepseek-v4-flash"_q;
+	bool _aiThinkingEnabled = false;
 	QString _aiSystemPrompt;
 };
 

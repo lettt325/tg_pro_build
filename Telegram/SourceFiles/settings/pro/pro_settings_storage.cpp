@@ -385,6 +385,15 @@ void Storage::setDeepseekModel(const QString &model) {
 	save();
 }
 
+bool Storage::aiThinkingEnabled() const {
+	return _aiThinkingEnabled;
+}
+
+void Storage::setAiThinkingEnabled(bool enabled) {
+	_aiThinkingEnabled = enabled;
+	save();
+}
+
 QString Storage::aiSystemPrompt() const {
 	return _aiSystemPrompt.isEmpty()
 		? defaultAiSystemPrompt()
@@ -520,7 +529,8 @@ void Storage::load() {
 	_aiMemoryEnabled = obj.value("aiMemoryEnabled").toBool();
 	_deepseekApiToken = obj.value("deepseekApiToken").toString();
 	_deepseekModel = obj.value("deepseekModel").toString(
-		u"deepseek-chat"_q);
+		u"deepseek-v4-flash"_q);
+	_aiThinkingEnabled = obj.value("aiThinkingEnabled").toBool();
 	_aiSystemPrompt = obj.value("aiSystemPrompt").toString();
 }
 
@@ -618,6 +628,7 @@ void Storage::save() {
 		obj["deepseekApiToken"] = _deepseekApiToken;
 	}
 	obj["deepseekModel"] = _deepseekModel;
+	obj["aiThinkingEnabled"] = _aiThinkingEnabled;
 	if (!_aiSystemPrompt.isEmpty()) {
 		obj["aiSystemPrompt"] = _aiSystemPrompt;
 	}

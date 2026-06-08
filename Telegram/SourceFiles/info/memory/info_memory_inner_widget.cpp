@@ -274,6 +274,7 @@ void InnerWidget::sendAiQuery() {
 	_aiClient = std::make_unique<ProAI::DeepSeekClient>(
 		token,
 		pro.deepseekModel());
+	_aiClient->setThinkingEnabled(pro.aiThinkingEnabled());
 
 	const auto peerId = _peer->id.value;
 	const auto entries = _peer->session().memoryStorage()

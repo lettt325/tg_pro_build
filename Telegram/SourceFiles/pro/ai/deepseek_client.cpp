@@ -40,6 +40,10 @@ void DeepSeekClient::setModel(const QString &model) {
 	_model = model;
 }
 
+void DeepSeekClient::setThinkingEnabled(bool enabled) {
+	_thinkingEnabled = enabled;
+}
+
 void DeepSeekClient::chat(
 		const QString &systemPrompt,
 		const std::vector<Message> &messages,
@@ -58,10 +62,15 @@ void DeepSeekClient::chat(
 		});
 	}
 
-	const auto body = QJsonObject{
+	auto body = QJsonObject{
 		{ "model", _model },
 		{ "messages", messagesArray },
 		{ "stream", false },
+	};
+	body["thinking"] = QJsonObject{
+		{ "type", _thinkingEnabled
+			? u"enabled"_q
+			: u"disabled"_q },
 	};
 	const auto data = QJsonDocument(body).toJson(QJsonDocument::Compact);
 

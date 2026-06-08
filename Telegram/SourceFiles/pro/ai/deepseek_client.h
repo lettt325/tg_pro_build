@@ -53,6 +53,8 @@ public:
 	void setApiToken(const QString &token);
 	void setModel(const QString &model);
 
+	void setThinkingEnabled(bool enabled);
+
 	void chat(
 		const QString &systemPrompt,
 		const std::vector<Message> &messages,
@@ -65,6 +67,7 @@ private:
 
 	QString _apiToken;
 	QString _model;
+	bool _thinkingEnabled = false;
 	QNetworkAccessManager _manager;
 	std::unique_ptr<QNetworkReply> _reply;
 	std::vector<std::unique_ptr<QNetworkReply>> _old;

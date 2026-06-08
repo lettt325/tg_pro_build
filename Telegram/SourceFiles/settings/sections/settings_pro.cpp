@@ -794,8 +794,8 @@ void BuildAIMemorySection(SectionBuilder &builder, ProState *state) {
 						st::boxLabel),
 					QMargins(0, 12, 0, 4));
 				const auto presets = std::vector<QString>{
-					u"deepseek-chat"_q,
-					u"deepseek-reasoner"_q,
+					u"deepseek-v4-flash"_q,
+					u"deepseek-v4-pro"_q,
 				};
 				for (const auto &model : presets) {
 					box->addRow(
@@ -824,6 +824,22 @@ void BuildAIMemorySection(SectionBuilder &builder, ProState *state) {
 		},
 		.keywords = { u"model"_q, u"deepseek"_q },
 	});
+
+	const auto thinkingToggle = builder.addButton({
+		.id = u"pro/ai_memory/thinking"_q,
+		.title = rpl::single(u"Thinking Mode"_q),
+		.st = &st::settingsButtonNoIcon,
+		.toggled = rpl::single(
+			state ? state->storage->aiThinkingEnabled() : false),
+		.keywords = { u"thinking"_q, u"reasoning"_q },
+	});
+
+	if (thinkingToggle && state) {
+		thinkingToggle->toggledChanges(
+		) | rpl::on_next([=](bool enabled) {
+			state->storage->setAiThinkingEnabled(enabled);
+		}, thinkingToggle->lifetime());
+	}
 
 	builder.addButton({
 		.id = u"pro/ai_memory/system_prompt"_q,
