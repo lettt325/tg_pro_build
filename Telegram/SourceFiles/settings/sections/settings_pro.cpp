@@ -779,19 +779,31 @@ void BuildAIMemorySection(SectionBuilder &builder, ProState *state) {
 		.icon = { &st::menuIconBot },
 		.onClick = [=] {
 			if (!controller || !state) return;
-			const auto menu = new Ui::PopupMenu(
-				controller->widget().get());
-			const auto models = std::vector<QString>{
-				u"deepseek-chat"_q,
-				u"deepseek-reasoner"_q,
-			};
-			for (const auto &model : models) {
-				const auto current = (model == state->storage->deepseekModel());
-				menu->addAction(
-					(current ? u"✓ "_q : u"   "_q) + model,
-					[=] { state->storage->setDeepseekModel(model); });
-			}
-			menu->popup(QCursor::pos());
+			controller->show(Box([=](not_null<Ui::GenericBox*> box) {
+				box->setTitle(rpl::single(u"Select AI Model"_q));
+				const auto models = std::vector<QString>{
+					u"deepseek-chat"_q,
+					u"deepseek-reasoner"_q,
+				};
+				for (const auto &model : models) {
+					const auto current =
+						(model == state->storage->deepseekModel());
+					const auto label = (current ? u"✓ "_q : u"   "_q)
+						+ model;
+					box->addRow(
+						object_ptr<Ui::SettingsButton>(
+							box,
+							rpl::single(label),
+							st::settingsButtonNoIcon)
+					)->setClickedCallback([=] {
+						state->storage->setDeepseekModel(model);
+						box->closeBox();
+					});
+				}
+				box->addButton(tr::lng_cancel(), [=] {
+					box->closeBox();
+				});
+			}));
 		},
 		.keywords = { u"model"_q, u"deepseek"_q },
 	});
