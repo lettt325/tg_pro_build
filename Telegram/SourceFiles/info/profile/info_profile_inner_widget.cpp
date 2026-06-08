@@ -435,7 +435,7 @@ object_ptr<Ui::SlideWrap<Ui::RpWidget>> InnerWidget::setupSharedMedia(
 			_controller->showSection(
 				std::make_shared<Info::Memento>(
 					peer,
-					Section(Section::Type::Memory)));
+					Info::Section(Info::Section::Type::Memory)));
 		});
 		object_ptr<Profile::FloatingIcon>(
 			memoryBtn->entity(),
