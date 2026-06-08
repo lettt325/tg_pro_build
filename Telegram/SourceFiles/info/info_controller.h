@@ -171,6 +171,7 @@ public:
 		Boosts,
 		ChannelEarn,
 		BotEarn,
+		Memory,
 	};
 	using SettingsType = ::Settings::Type;
 	using MediaType = Storage::SharedMediaType;

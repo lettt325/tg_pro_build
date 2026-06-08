@@ -55,6 +55,10 @@ namespace ProSettings {
 class Storage;
 } // namespace ProSettings
 
+namespace ProMemory {
+class Storage;
+} // namespace ProMemory
+
 namespace HistoryView::Reactions {
 class CachedIconFactory;
 } // namespace HistoryView::Reactions
@@ -230,6 +234,9 @@ public:
 	[[nodiscard]] ProSettings::Storage &proStorage() const {
 		return *_proStorage;
 	}
+	[[nodiscard]] ProMemory::Storage &memoryStorage() const {
+		return *_memoryStorage;
+	}
 	[[nodiscard]] auto cachedReactionIconFactory() const
 	-> HistoryView::Reactions::CachedIconFactory & {
 		return *_cachedReactionIconFactory;
@@ -344,6 +351,7 @@ private:
 	const std::unique_ptr<ReactionIconFactory> _cachedReactionIconFactory;
 
 	const std::unique_ptr<ProSettings::Storage> _proStorage;
+	const std::unique_ptr<ProMemory::Storage> _memoryStorage;
 
 	const std::unique_ptr<Support::Helper> _supportHelper;
 	const std::unique_ptr<Support::FastButtonsBots> _fastButtonsBots;

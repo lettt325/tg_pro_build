@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/saved/info_saved_sublists_widget.h"
 #include "info/settings/info_settings_widget.h"
 #include "info/similar_peers/info_similar_peers_widget.h"
+#include "info/memory/info_memory_widget.h"
 #include "info/reactions_list/info_reactions_list_widget.h"
 #include "info/requests_list/info_requests_list_widget.h"
 #include "info/peer_gifts/info_peer_gifts_widget.h"
@@ -223,6 +224,8 @@ std::shared_ptr<ContentMemento> Memento::DefaultContent(
 		return std::make_shared<Members::Memento>(
 			peer,
 			migratedPeerId);
+	case Section::Type::Memory:
+		return std::make_shared<Memory::Memento>(peer);
 	}
 	Unexpected("Wrong section type in Info::Memento::DefaultContent()");
 }

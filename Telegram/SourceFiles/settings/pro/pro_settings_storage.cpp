@@ -358,6 +358,53 @@ bool Storage::hasAnyInteracted() const {
 	return !_ghostInteractedPeers.empty();
 }
 
+bool Storage::aiMemoryEnabled() const {
+	return _aiMemoryEnabled;
+}
+
+void Storage::setAiMemoryEnabled(bool enabled) {
+	_aiMemoryEnabled = enabled;
+	save();
+}
+
+QString Storage::deepseekApiToken() const {
+	return _deepseekApiToken;
+}
+
+void Storage::setDeepseekApiToken(const QString &token) {
+	_deepseekApiToken = token;
+	save();
+}
+
+QString Storage::deepseekModel() const {
+	return _deepseekModel;
+}
+
+void Storage::setDeepseekModel(const QString &model) {
+	_deepseekModel = model;
+	save();
+}
+
+QString Storage::aiSystemPrompt() const {
+	return _aiSystemPrompt.isEmpty()
+		? defaultAiSystemPrompt()
+		: _aiSystemPrompt;
+}
+
+void Storage::setAiSystemPrompt(const QString &prompt) {
+	_aiSystemPrompt = prompt;
+	save();
+}
+
+QString Storage::defaultAiSystemPrompt() {
+	return u"You are a personal memory assistant. "
+		"You have access to saved notes about a specific contact. "
+		"Answer questions precisely and concisely based on the provided memories. "
+		"Always cite specific details and dates when available. "
+		"If you don't have relevant information in the memories, say so honestly. "
+		"Respond in the same language as the question."_q;
+}
+
 void Storage::load() {
 	const auto data = _session->account().local().readPref<QByteArray>(
 		kPrefKey,
@@ -469,6 +516,12 @@ void Storage::load() {
 			}
 		}
 	}
+
+	_aiMemoryEnabled = obj.value("aiMemoryEnabled").toBool();
+	_deepseekApiToken = obj.value("deepseekApiToken").toString();
+	_deepseekModel = obj.value("deepseekModel").toString(
+		u"deepseek-chat"_q);
+	_aiSystemPrompt = obj.value("aiSystemPrompt").toString();
 }
 
 void Storage::save() {
@@ -558,6 +611,15 @@ void Storage::save() {
 			dm[QString::number(peer)] = arr;
 		}
 		obj["deletedMessages"] = dm;
+	}
+
+	obj["aiMemoryEnabled"] = _aiMemoryEnabled;
+	if (!_deepseekApiToken.isEmpty()) {
+		obj["deepseekApiToken"] = _deepseekApiToken;
+	}
+	obj["deepseekModel"] = _deepseekModel;
+	if (!_aiSystemPrompt.isEmpty()) {
+		obj["aiSystemPrompt"] = _aiSystemPrompt;
 	}
 
 	_session->account().local().writePref<QByteArray>(

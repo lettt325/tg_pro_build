@@ -721,6 +721,123 @@ void BuildGhostModeSection(
 		"to exclude specific chats from Ghost Mode."_q));
 }
 
+void BuildAIMemorySection(SectionBuilder &builder, ProState *state) {
+	const auto controller = builder.controller();
+
+	builder.addDivider();
+	builder.addSkip();
+	builder.addSubsectionTitle(rpl::single(u"AI Memory"_q));
+
+	const auto toggle = builder.addButton({
+		.id = u"pro/ai_memory"_q,
+		.title = rpl::single(u"Enable AI Memory"_q),
+		.st = &st::settingsButtonNoIcon,
+		.toggled = rpl::single(
+			state ? state->storage->aiMemoryEnabled() : false),
+		.keywords = { u"ai"_q, u"memory"_q, u"deepseek"_q },
+	});
+
+	if (toggle && state) {
+		toggle->toggledChanges(
+		) | rpl::on_next([=](bool enabled) {
+			state->storage->setAiMemoryEnabled(enabled);
+		}, toggle->lifetime());
+	}
+
+	builder.addButton({
+		.id = u"pro/ai_memory/token"_q,
+		.title = rpl::single(u"DeepSeek API Token"_q),
+		.icon = { &st::menuIconLock },
+		.onClick = [=] {
+			if (!controller || !state) return;
+			controller->show(Box([=](not_null<Ui::GenericBox*> box) {
+				box->setTitle(rpl::single(u"DeepSeek API Token"_q));
+				const auto field = box->addRow(
+					object_ptr<Ui::InputField>(
+						box,
+						st::defaultInputField,
+						rpl::single(u"sk-..."_q),
+						state->storage->deepseekApiToken()));
+				box->addButton(
+					rpl::single(u"Save"_q),
+					[=] {
+						state->storage->setDeepseekApiToken(
+							field->getLastText().trimmed());
+						box->closeBox();
+					});
+				box->addButton(tr::lng_cancel(), [=] {
+					box->closeBox();
+				});
+			}));
+		},
+		.keywords = { u"token"_q, u"api"_q, u"key"_q },
+	});
+
+	builder.addButton({
+		.id = u"pro/ai_memory/model"_q,
+		.title = rpl::single(u"AI Model"_q),
+		.icon = { &st::menuIconBot },
+		.onClick = [=] {
+			if (!controller || !state) return;
+			const auto menu = Ui::CreateChild<Ui::PopupMenu>(
+				controller->widget().get());
+			const auto models = std::vector<QString>{
+				u"deepseek-chat"_q,
+				u"deepseek-reasoner"_q,
+			};
+			for (const auto &model : models) {
+				const auto current = (model == state->storage->deepseekModel());
+				menu->addAction(
+					(current ? u"✓ "_q : u"   "_q) + model,
+					[=] { state->storage->setDeepseekModel(model); });
+			}
+			menu->popup(QCursor::pos());
+		},
+		.keywords = { u"model"_q, u"deepseek"_q },
+	});
+
+	builder.addButton({
+		.id = u"pro/ai_memory/system_prompt"_q,
+		.title = rpl::single(u"System Prompt"_q),
+		.st = &st::settingsButtonNoIcon,
+		.onClick = [=] {
+			if (!controller || !state) return;
+			controller->show(Box([=](not_null<Ui::GenericBox*> box) {
+				box->setTitle(rpl::single(u"AI System Prompt"_q));
+				const auto field = box->addRow(
+					object_ptr<Ui::InputField>(
+						box,
+						st::defaultInputField,
+						rpl::single(u"System prompt..."_q),
+						state->storage->aiSystemPrompt()));
+				field->setMaxLength(2000);
+				box->addButton(
+					rpl::single(u"Save"_q),
+					[=] {
+						state->storage->setAiSystemPrompt(
+							field->getLastText().trimmed());
+						box->closeBox();
+					});
+				box->addButton(
+					rpl::single(u"Reset"_q),
+					[=] {
+						state->storage->setAiSystemPrompt(QString());
+						box->closeBox();
+					});
+				box->addButton(tr::lng_cancel(), [=] {
+					box->closeBox();
+				});
+			}));
+		},
+		.keywords = { u"prompt"_q, u"system"_q, u"ai"_q },
+	});
+
+	builder.addDividerText(rpl::single(
+		u"AI Memory lets you save important facts about contacts "
+		"and query them using DeepSeek AI. Open any user's profile "
+		"and tap Memory to view saved fragments or ask AI."_q));
+}
+
 void BuildUpdatesSection(
 		SectionBuilder &builder,
 		Window::SessionController *controller) {
@@ -817,6 +934,7 @@ const auto kMeta = BuildHelper({
 	BuildSaveDeletedSection(builder, state);
 	BuildWeakWordsSection(builder, state);
 	BuildGhostModeSection(builder, state);
+	BuildAIMemorySection(builder, state);
 	BuildUpdatesSection(builder, builder.controller());
 });
 

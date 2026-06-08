@@ -16,7 +16,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_top_bar.h"
 #include "info/profile/info_profile_actions.h"
 #include "info/media/info_media_buttons.h"
+#include "info/memory/info_memory_widget.h"
 #include "info/saved/info_saved_music_widget.h"
+#include "settings/pro/pro_settings_storage.h"
+#include "pro/memory/memory_storage.h"
 #include "data/data_changes.h"
 #include "data/data_channel.h"
 #include "data/data_document.h"
@@ -412,6 +415,32 @@ object_ptr<Ui::SlideWrap<Ui::RpWidget>> InnerWidget::setupSharedMedia(
 		addSimilarPeersButton(channel, st::infoIconMediaChannel);
 	} else if (const auto user = peer->asUser()) {
 		addCommonGroupsButton(user, st::infoIconMediaGroup);
+	}
+
+	if (peer->isUser()
+		&& peer->session().proStorage().aiMemoryEnabled()) {
+		const auto memoryCount = peer->session().memoryStorage()
+			.entryCount(peer->id.value);
+		auto memoryBtn = Media::AddCountedButton(
+			content,
+			rpl::single(memoryCount),
+			[](int count) {
+				return u"Memory"_q
+					+ (count > 0
+						? (u" ("_q + QString::number(count) + u")"_q)
+						: QString());
+			},
+			tracker);
+		memoryBtn->entity()->setClickedCallback([=] {
+			_controller->showSection(
+				std::make_shared<Info::Memento>(
+					peer,
+					Section(Section::Type::Memory)));
+		});
+		object_ptr<Profile::FloatingIcon>(
+			memoryBtn->entity(),
+			st::infoIconMediaLink,
+			st::infoSharedMediaButtonIconPosition);
 	}
 
 	auto result = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(

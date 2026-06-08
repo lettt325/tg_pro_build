@@ -100,6 +100,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "settings/pro/pro_settings_storage.h"
+#include "pro/memory/memory_storage.h"
 #include "ui/layers/generic_box.h"
 #include "ui/widgets/labels.h"
 #include "media/audio/media_audio.h"
@@ -1120,6 +1121,71 @@ bool AddEditHistoryAction(
 	return true;
 }
 
+bool AddSaveToMemoryAction(
+		not_null<Ui::PopupMenu*> menu,
+		const ContextMenuRequest &request,
+		not_null<ListWidget*> list) {
+	const auto item = request.item;
+	if (!item || !item->isRegular()) {
+		return false;
+	}
+	const auto &pro = item->history()->session().proStorage();
+	if (!pro.aiMemoryEnabled()) {
+		return false;
+	}
+	const auto controller = list->controller();
+	const auto peerId = item->history()->peer->id.value;
+	const auto msgId = item->id.bare;
+	const auto msgDate = item->date();
+	auto msgText = item->originalText().text;
+	if (msgText.isEmpty()) {
+		msgText = u"[media]"_q;
+	}
+	menu->addAction(u"Save to Memory"_q, crl::guard(controller, [=] {
+		controller->show(Box([=](not_null<Ui::GenericBox*> box) {
+			box->setTitle(rpl::single(u"Save to Memory"_q));
+			const auto field = box->addRow(
+				object_ptr<Ui::InputField>(
+					box,
+					st::defaultInputField,
+					rpl::single(u"Memory note..."_q),
+					msgText));
+			const auto tagsField = box->addRow(
+				object_ptr<Ui::InputField>(
+					box,
+					st::defaultInputField,
+					rpl::single(u"Tags (comma-separated)..."_q)));
+			box->addButton(
+				rpl::single(u"Save"_q),
+				[=] {
+					const auto text = field->getLastText().trimmed();
+					if (text.isEmpty()) {
+						return;
+					}
+					auto tags = QStringList();
+					for (auto &t : tagsField->getLastText().split(',')) {
+						const auto tag = t.trimmed();
+						if (!tag.isEmpty()) {
+							tags.append(tag);
+						}
+					}
+					controller->session().memoryStorage().addEntry(
+						peerId,
+						text,
+						ProMemory::Source::Message,
+						msgId,
+						msgDate,
+						tags);
+					box->closeBox();
+				});
+			box->addButton(tr::lng_cancel(), [=] {
+				box->closeBox();
+			});
+		}));
+	}), &st::menuIconSavedMessages);
+	return true;
+}
+
 void AddTopMessageActions(
 		not_null<Ui::PopupMenu*> menu,
 		const ContextMenuRequest &request,
@@ -1128,6 +1194,7 @@ void AddTopMessageActions(
 	AddViewRepliesAction(menu, request, list);
 	AddEditMessageAction(menu, request, list);
 	AddEditHistoryAction(menu, request, list);
+	AddSaveToMemoryAction(menu, request, list);
 	AddFactcheckAction(menu, request, list);
 	AddPinMessageAction(menu, request, list);
 }

@@ -107,6 +107,17 @@ public:
 	[[nodiscard]] bool consumePeerInteracted(uint64 peerId);
 	[[nodiscard]] bool hasAnyInteracted() const;
 
+	[[nodiscard]] bool aiMemoryEnabled() const;
+	void setAiMemoryEnabled(bool enabled);
+	[[nodiscard]] QString deepseekApiToken() const;
+	void setDeepseekApiToken(const QString &token);
+	[[nodiscard]] QString deepseekModel() const;
+	void setDeepseekModel(const QString &model);
+	[[nodiscard]] QString aiSystemPrompt() const;
+	void setAiSystemPrompt(const QString &prompt);
+
+	static QString defaultAiSystemPrompt();
+
 private:
 	void load();
 	void save();
@@ -140,6 +151,11 @@ private:
 	int _overlayStyle = 0;
 	QString _overlayScreenName;
 	std::unique_ptr<ProOverlay::TypingOverlay> _typingOverlay;
+
+	bool _aiMemoryEnabled = false;
+	QString _deepseekApiToken;
+	QString _deepseekModel = u"deepseek-chat"_q;
+	QString _aiSystemPrompt;
 };
 
 } // namespace ProSettings

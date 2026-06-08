@@ -1155,6 +1155,10 @@ PRIVATE
     info/media/info_media_provider.h
     info/media/info_media_widget.cpp
     info/media/info_media_widget.h
+    info/memory/info_memory_inner_widget.cpp
+    info/memory/info_memory_inner_widget.h
+    info/memory/info_memory_widget.cpp
+    info/memory/info_memory_widget.h
     info/members/info_members_widget.cpp
     info/members/info_members_widget.h
     info/peer_gifts/info_peer_gifts_collections.cpp
@@ -1690,6 +1694,10 @@ PRIVATE
     settings/pro/pro_settings_storage.h
     settings/pro/pro_typing_overlay.cpp
     settings/pro/pro_typing_overlay.h
+    pro/memory/memory_storage.cpp
+    pro/memory/memory_storage.h
+    pro/ai/deepseek_client.cpp
+    pro/ai/deepseek_client.h
     settings/sections/settings_chat.cpp
     settings/sections/settings_chat.h
     settings/sections/settings_blocked_peers.cpp
