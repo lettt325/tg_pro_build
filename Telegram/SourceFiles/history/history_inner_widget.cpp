@@ -123,7 +123,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "dialogs/ui/dialogs_video_userpic.h"
 #include "settings/pro/pro_settings_storage.h"
+#include "pro/memory/memory_storage.h"
 #include "ui/layers/generic_box.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/labels.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
@@ -2852,6 +2854,55 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					}));
 				}), &st::menuIconEdit);
 			}
+		}
+		if (pro.aiMemoryEnabled()) {
+			const auto peerId = pid;
+			const auto msgId = mid;
+			const auto msgDate = item->date();
+			auto msgText = item->originalText().text;
+			if (msgText.isEmpty()) {
+				msgText = u"[media]"_q;
+			}
+			_menu->addAction(u"Save to Memory"_q, crl::guard(controller, [=] {
+				controller->show(Box([=](not_null<Ui::GenericBox*> box) {
+					box->setTitle(rpl::single(u"Save to Memory"_q));
+					const auto field = box->addRow(
+						object_ptr<Ui::InputField>(
+							box,
+							st::defaultInputField,
+							rpl::single(u"Memory note..."_q),
+							msgText));
+					const auto tagsField = box->addRow(
+						object_ptr<Ui::InputField>(
+							box,
+							st::defaultInputField,
+							rpl::single(u"Tags (comma-separated)..."_q)));
+					box->addButton(
+						rpl::single(u"Save"_q),
+						[=] {
+							const auto text = field->getLastText().trimmed();
+							if (text.isEmpty()) return;
+							auto tags = QStringList();
+							for (auto &t : tagsField->getLastText().split(',')) {
+								const auto tag = t.trimmed();
+								if (!tag.isEmpty()) {
+									tags.append(tag);
+								}
+							}
+							controller->session().memoryStorage().addEntry(
+								peerId,
+								text,
+								ProMemory::Source::Message,
+								msgId,
+								msgDate,
+								tags);
+							box->closeBox();
+						});
+					box->addButton(tr::lng_cancel(), [=] {
+						box->closeBox();
+					});
+				}));
+			}), &st::menuIconSavedMessages);
 		}
 		if (session->factchecks().canEdit(item)) {
 			const auto text = item->factcheckText();
