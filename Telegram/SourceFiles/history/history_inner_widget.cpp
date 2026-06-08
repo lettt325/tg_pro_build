@@ -122,8 +122,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_histories.h"
 #include "data/data_changes.h"
 #include "dialogs/ui/dialogs_video_userpic.h"
+#include "settings/pro/pro_settings_storage.h"
+#include "ui/layers/generic_box.h"
+#include "ui/widgets/labels.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
+#include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
 
 #include <QtGui/QClipboard>
@@ -2788,6 +2792,66 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					_widget->editMessage(item, selection);
 				}
 			}, &st::menuIconEdit);
+		}
+		{
+			const auto edited = item->Get<HistoryMessageEdited>();
+			const auto &pro = session->proStorage();
+			const auto pid = item->history()->peer->id.value;
+			const auto mid = item->id.bare;
+			if (edited || pro.hasEditHistory(pid, mid)) {
+				_menu->addAction(u"Edit History"_q, crl::guard(controller, [=] {
+					const auto &pro = controller->session().proStorage();
+					const auto versions = pro.editHistory(pid, mid);
+					controller->show(Box([=](not_null<Ui::GenericBox*> box) {
+						box->setTitle(rpl::single(u"Edit History"_q));
+						const auto wrap = box->addRow(
+							object_ptr<Ui::VerticalLayout>(box));
+						if (versions.empty()) {
+							wrap->add(
+								object_ptr<Ui::FlatLabel>(
+									wrap,
+									rpl::single(
+										u"No edit history captured. "
+										"Enable \"Save edit history\" "
+										"in Pro Settings to track "
+										"future edits."_q),
+									st::boxLabel),
+								QMargins(0, 8, 0, 0));
+						} else {
+							for (auto i = 0; i < int(versions.size()); ++i) {
+								const auto &v = versions[i];
+								const auto header = (i == 0)
+									? u"Original"_q
+									: u"Edit #%1"_q.arg(i);
+								const auto time = v.date
+									? QDateTime::fromSecsSinceEpoch(
+										v.date).toString(
+										u"dd.MM.yyyy hh:mm"_q)
+									: QString();
+								wrap->add(
+									object_ptr<Ui::FlatLabel>(
+										wrap,
+										rpl::single(
+											header + u"  "_q + time),
+										st::boxLabel),
+									QMargins(0, 8, 0, 0));
+								const auto text = wrap->add(
+									object_ptr<Ui::FlatLabel>(
+										wrap,
+										rpl::single(v.text.isEmpty()
+											? u"[media]"_q
+											: v.text),
+										st::boxLabel),
+									QMargins(0, 2, 0, 0));
+								text->setSelectable(true);
+							}
+						}
+						box->addButton(tr::lng_close(), [=] {
+							box->closeBox();
+						});
+					}));
+				}), &st::menuIconEdit);
+			}
 		}
 		if (session->factchecks().canEdit(item)) {
 			const auto text = item->factcheckText();
