@@ -3,13 +3,13 @@
   <channel>
     <title>TGPro Updates</title>
     <item>
-      <title>TGPro 6.8.4 (build 95)</title>
-      <sparkle:version>6.8.4.95</sparkle:version>
+      <title>TGPro 6.8.4 (build 100)</title>
+      <sparkle:version>6.8.4.100</sparkle:version>
       <sparkle:shortVersionString>6.8.4</sparkle:shortVersionString>
-      <pubDate>Mon, 08 Jun 2026 01:22:36 +0000</pubDate>
+      <pubDate>Mon, 08 Jun 2026 15:49:36 +0000</pubDate>
       <enclosure
         url="https://github.com/tgprodev/tg_pro_build/releases/download/nightly/TGPro.dmg"
-        sparkle:edSignature="d6E0LCH7VvovZDSK86+1DdxrSKdipBqaksKYj4QhcIv9MmODCYTHjhiuJ4TB3NTUnPD6L2XEdLim2muCw8fVCQ==" length="152370431"
+        sparkle:edSignature="KSigeAVNNBzlbagRDkLL74I0lRxeSJr1yXM7Kz5ZhSOLDcW7JIbPDnZGVZU1LZ0RC8AiKXcGp5vE3UWjt3AGAA==" length="152408529"
         type="application/octet-stream" />
     </item>
   </channel>
