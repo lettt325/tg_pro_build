@@ -2855,9 +2855,9 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				}), &st::menuIconEdit);
 			}
 		}
-		if (pro.aiMemoryEnabled()) {
-			const auto peerId = pid;
-			const auto msgId = mid;
+		if (session->proStorage().aiMemoryEnabled()) {
+			const auto peerId = item->history()->peer->id.value;
+			const auto msgId = item->id.bare;
 			const auto msgDate = item->date();
 			auto msgText = item->originalText().text;
 			if (msgText.isEmpty()) {
