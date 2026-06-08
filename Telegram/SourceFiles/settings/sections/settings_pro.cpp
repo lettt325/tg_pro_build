@@ -779,7 +779,7 @@ void BuildAIMemorySection(SectionBuilder &builder, ProState *state) {
 		.icon = { &st::menuIconBot },
 		.onClick = [=] {
 			if (!controller || !state) return;
-			const auto menu = Ui::CreateChild<Ui::PopupMenu>(
+			const auto menu = new Ui::PopupMenu(
 				controller->widget().get());
 			const auto models = std::vector<QString>{
 				u"deepseek-chat"_q,
