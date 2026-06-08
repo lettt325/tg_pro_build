@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/pro/pro_settings_storage.h"
 #include "base/unixtime.h"
 #include "data/data_peer.h"
+#include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "ui/layers/generic_box.h"
 #include "ui/vertical_list.h"
