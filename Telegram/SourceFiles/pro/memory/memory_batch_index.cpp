@@ -203,9 +203,13 @@ void RunIndexing(
 	const auto state = box->lifetime().make_state<State>();
 
 	const auto &pro = session->proStorage();
+	auto model = pro.deepseekModel();
+	if (model.isEmpty()) {
+		model = u"deepseek-v4-flash"_q;
+	}
 	state->client = std::make_unique<ProAI::DeepSeekClient>(
 		pro.deepseekApiToken(),
-		pro.deepseekModel());
+		model);
 	state->tools = MakeToolsDefinition();
 	state->totalChunks = int(chunks.size());
 
@@ -293,7 +297,7 @@ void RunIndexing(
 				state->logArea,
 				rpl::single(u"[debug] sending %1 messages, model: %2"_q
 					.arg(messages.count())
-					.arg(session->proStorage().deepseekModel())),
+					.arg(model)),
 				st::defaultFlatLabel),
 			QMargins(0, 2, 0, 0));
 		state->logArea->resizeToWidth(state->logArea->width());

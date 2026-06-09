@@ -62,8 +62,11 @@ void DeepSeekClient::chat(
 		});
 	}
 
+	const auto model = _model.isEmpty()
+		? u"deepseek-v4-flash"_q
+		: _model;
 	auto body = QJsonObject{
-		{ "model", _model },
+		{ "model", model },
 		{ "messages", messagesArray },
 		{ "stream", false },
 	};
@@ -162,8 +165,11 @@ void DeepSeekClient::chatWithTools(
 		const QJsonArray &messages,
 		const QJsonArray &tools,
 		ChatWithToolsCallback callback) {
+	const auto model = _model.isEmpty()
+		? u"deepseek-v4-flash"_q
+		: _model;
 	auto body = QJsonObject{
-		{ "model", _model },
+		{ "model", model },
 		{ "messages", messages },
 		{ "stream", false },
 		{ "tools", tools },
