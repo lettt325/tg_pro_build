@@ -40,7 +40,11 @@ void Storage::addEntry(
 		Source source,
 		int64 msgId,
 		int64 date,
-		const QStringList &tags) {
+		const QStringList &tags,
+		const QString &category,
+		const QString &importance,
+		const QString &dateContext,
+		const QString &relatedTo) {
 	auto entry = Entry{
 		.id = nextId(),
 		.peerId = peerId,
@@ -50,6 +54,10 @@ void Storage::addEntry(
 		.date = date,
 		.createdAt = base::unixtime::now(),
 		.tags = tags,
+		.category = category,
+		.importance = importance,
+		.dateContext = dateContext,
+		.relatedTo = relatedTo,
 	};
 	_entries[peerId].push_back(std::move(entry));
 	save();
@@ -171,6 +179,10 @@ void Storage::load() {
 					entry.tags.append(s);
 				}
 			}
+			entry.category = o.value("cat").toString();
+			entry.importance = o.value("imp").toString();
+			entry.dateContext = o.value("dc").toString();
+			entry.relatedTo = o.value("rel").toString();
 			if (entry.id >= _nextId) {
 				_nextId = entry.id + 1;
 			}
@@ -205,6 +217,10 @@ void Storage::save() {
 				}
 				o["tags"] = tags;
 			}
+			if (!e.category.isEmpty()) o["cat"] = e.category;
+			if (!e.importance.isEmpty()) o["imp"] = e.importance;
+			if (!e.dateContext.isEmpty()) o["dc"] = e.dateContext;
+			if (!e.relatedTo.isEmpty()) o["rel"] = e.relatedTo;
 			arr.append(o);
 		}
 		peers[QString::number(peerId)] = arr;

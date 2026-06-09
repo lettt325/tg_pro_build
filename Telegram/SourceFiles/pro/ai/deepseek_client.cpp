@@ -158,6 +158,104 @@ void DeepSeekClient::chat(
 	});
 }
 
+void DeepSeekClient::chatWithTools(
+		const QJsonArray &messages,
+		const QJsonArray &tools,
+		ChatWithToolsCallback callback) {
+	auto body = QJsonObject{
+		{ "model", _model },
+		{ "messages", messages },
+		{ "stream", false },
+		{ "tools", tools },
+	};
+
+	const auto data = QJsonDocument(body).toJson(QJsonDocument::Compact);
+
+	auto request = QNetworkRequest(QUrl(kApiUrl));
+	request.setHeader(
+		QNetworkRequest::ContentTypeHeader,
+		"application/json");
+	request.setRawHeader(
+		"Authorization",
+		("Bearer " + _apiToken).toUtf8());
+
+	destroyReplyDelayed(std::move(_reply));
+	_reply.reset(_manager.post(request, data));
+
+	const auto finish = [=](ChatResponseWithTools response, Error error) {
+		crl::on_main([
+			callback,
+			response = std::move(response),
+			error = std::move(error)
+		] {
+			callback(std::move(response), std::move(error));
+		});
+	};
+
+	QObject::connect(_reply.get(), &QNetworkReply::finished, [=] {
+		const auto replyError = int(_reply->error());
+		const auto replyErrorString = _reply->errorString();
+		const auto bytes = _reply->readAll();
+		destroyReplyDelayed(std::move(_reply));
+
+		if (bytes.isEmpty() && replyError != QNetworkReply::NoError) {
+			finish({}, Error{ Error::Code::Network, replyErrorString });
+			return;
+		}
+
+		auto parseError = QJsonParseError();
+		const auto doc = QJsonDocument::fromJson(bytes, &parseError);
+		if (parseError.error != QJsonParseError::NoError) {
+			finish({}, Error{ Error::Code::JsonParse, parseError.errorString() });
+			return;
+		}
+
+		const auto obj = doc.object();
+		if (obj.contains("error")) {
+			const auto err = obj.value("error").toObject();
+			finish({}, Error{ Error::Code::ApiError, err.value("message").toString() });
+			return;
+		}
+		if (replyError != QNetworkReply::NoError) {
+			finish({}, Error{ Error::Code::Network, replyErrorString });
+			return;
+		}
+
+		const auto choices = obj.value("choices").toArray();
+		if (choices.isEmpty()) {
+			finish({}, Error{ Error::Code::JsonFormat, "No choices in response." });
+			return;
+		}
+
+		const auto message = choices.first()
+			.toObject().value("message").toObject();
+		const auto usage = obj.value("usage").toObject();
+
+		auto response = ChatResponseWithTools{
+			.content = message.value("content").toString(),
+			.promptTokens = usage.value("prompt_tokens").toInt(),
+			.completionTokens = usage.value("completion_tokens").toInt(),
+		};
+
+		const auto toolCallsArr = message.value("tool_calls").toArray();
+		for (const auto &tc : toolCallsArr) {
+			const auto tcObj = tc.toObject();
+			const auto fn = tcObj.value("function").toObject();
+			auto argsDoc = QJsonDocument::fromJson(
+				fn.value("arguments").toString().toUtf8());
+			response.toolCalls.push_back(ToolCall{
+				.id = tcObj.value("id").toString(),
+				.functionName = fn.value("name").toString(),
+				.arguments = argsDoc.isObject()
+					? argsDoc.object()
+					: QJsonObject(),
+			});
+		}
+
+		finish(std::move(response), Error{});
+	});
+}
+
 void DeepSeekClient::cancel() {
 	destroyReplyDelayed(std::move(_reply));
 }

@@ -414,6 +414,29 @@ QString Storage::defaultAiSystemPrompt() {
 		"Respond in the same language as the question."_q;
 }
 
+QString Storage::memoryLanguage() const {
+	return _memoryLanguage;
+}
+
+void Storage::setMemoryLanguage(const QString &lang) {
+	_memoryLanguage = lang;
+	save();
+}
+
+QString Storage::peerRole(uint64 peerId) const {
+	const auto it = _peerRoles.find(peerId);
+	return (it != _peerRoles.end()) ? it->second : QString();
+}
+
+void Storage::setPeerRole(uint64 peerId, const QString &role) {
+	if (role.isEmpty()) {
+		_peerRoles.remove(peerId);
+	} else {
+		_peerRoles[peerId] = role;
+	}
+	save();
+}
+
 void Storage::load() {
 	const auto data = _session->account().local().readPref<QByteArray>(
 		kPrefKey,
@@ -532,6 +555,16 @@ void Storage::load() {
 		u"deepseek-v4-flash"_q);
 	_aiThinkingEnabled = obj.value("aiThinkingEnabled").toBool();
 	_aiSystemPrompt = obj.value("aiSystemPrompt").toString();
+	_memoryLanguage = obj.value("memoryLanguage").toString(u"ru"_q);
+
+	_peerRoles.clear();
+	const auto roles = obj.value("peerRoles").toObject();
+	for (auto it = roles.begin(); it != roles.end(); ++it) {
+		const auto id = static_cast<uint64>(it.key().toDouble());
+		if (id) {
+			_peerRoles[id] = it.value().toString();
+		}
+	}
 }
 
 void Storage::save() {
@@ -631,6 +664,14 @@ void Storage::save() {
 	obj["aiThinkingEnabled"] = _aiThinkingEnabled;
 	if (!_aiSystemPrompt.isEmpty()) {
 		obj["aiSystemPrompt"] = _aiSystemPrompt;
+	}
+	obj["memoryLanguage"] = _memoryLanguage;
+	if (!_peerRoles.empty()) {
+		auto roles = QJsonObject();
+		for (const auto &[id, role] : _peerRoles) {
+			roles[QString::number(id)] = role;
+		}
+		obj["peerRoles"] = roles;
 	}
 
 	_session->account().local().writePref<QByteArray>(

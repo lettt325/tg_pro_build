@@ -93,6 +93,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_window.h"
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"
+#include "pro/memory/memory_batch_index.h"
 
 #include <QtCore/QMimeData>
 
@@ -331,6 +332,10 @@ ChatWidget::ChatWidget(
 	_topBar->clearSelectionRequest(
 	) | rpl::on_next([=] {
 		clearSelected();
+	}, _topBar->lifetime());
+	_topBar->indexMemorySelectionRequest(
+	) | rpl::on_next([=] {
+		indexMemorySelected();
 	}, _topBar->lifetime());
 	_topBar->searchRequest(
 	) | rpl::on_next([=] {
@@ -3477,6 +3482,30 @@ void ChatWidget::confirmDeleteSelected() {
 
 void ChatWidget::confirmForwardSelected() {
 	ConfirmForwardSelectedItems(_inner);
+}
+
+void ChatWidget::indexMemorySelected() {
+	if (!_peer) return;
+	auto ids = _inner->getSelectedIds();
+	if (ids.empty()) return;
+	const auto items = session().data().idsToItems(ids);
+	auto notNull = std::vector<not_null<HistoryItem*>>();
+	for (const auto &item : items) {
+		notNull.push_back(item);
+	}
+	ranges::sort(notNull, ranges::less{}, &HistoryItem::date);
+	const auto peerId = _peer->id.value;
+	const auto weak = base::make_weak(this);
+	ProMemory::ShowBatchIndexBox(
+		controller(),
+		&session(),
+		peerId,
+		std::move(notNull),
+		[weak] {
+			if (const auto strong = weak.get()) {
+				strong->clearSelected();
+			}
+		});
 }
 
 void ChatWidget::clearSelected() {

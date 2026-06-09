@@ -31,6 +31,10 @@ struct Entry {
 	int64 date = 0;
 	int64 createdAt = 0;
 	QStringList tags;
+	QString category;
+	QString importance;
+	QString dateContext;
+	QString relatedTo;
 };
 
 class Storage {
@@ -44,7 +48,11 @@ public:
 		Source source,
 		int64 msgId = 0,
 		int64 date = 0,
-		const QStringList &tags = {});
+		const QStringList &tags = {},
+		const QString &category = {},
+		const QString &importance = {},
+		const QString &dateContext = {},
+		const QString &relatedTo = {});
 
 	void updateEntry(int64 entryId, const QString &text,
 		const QStringList &tags);

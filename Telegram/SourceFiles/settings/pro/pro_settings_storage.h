@@ -118,6 +118,11 @@ public:
 	[[nodiscard]] QString aiSystemPrompt() const;
 	void setAiSystemPrompt(const QString &prompt);
 
+	[[nodiscard]] QString memoryLanguage() const;
+	void setMemoryLanguage(const QString &lang);
+	[[nodiscard]] QString peerRole(uint64 peerId) const;
+	void setPeerRole(uint64 peerId, const QString &role);
+
 	static QString defaultAiSystemPrompt();
 
 private:
@@ -159,6 +164,8 @@ private:
 	QString _deepseekModel = u"deepseek-v4-flash"_q;
 	bool _aiThinkingEnabled = false;
 	QString _aiSystemPrompt;
+	QString _memoryLanguage = u"ru"_q;
+	base::flat_map<uint64, QString> _peerRoles;
 };
 
 } // namespace ProSettings

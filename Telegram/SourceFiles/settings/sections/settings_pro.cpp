@@ -877,10 +877,45 @@ void BuildAIMemorySection(SectionBuilder &builder, ProState *state) {
 		.keywords = { u"prompt"_q, u"system"_q, u"ai"_q },
 	});
 
+	builder.addButton({
+		.id = u"pro/ai_memory/language"_q,
+		.title = rpl::single(u"Memory Language"_q),
+		.icon = { &st::menuIconTranslate },
+		.onClick = [=] {
+			if (!controller || !state) return;
+			controller->show(Box([=](not_null<Ui::GenericBox*> box) {
+				box->setTitle(rpl::single(u"Memory Language"_q));
+				const auto langs = std::vector<std::pair<QString, QString>>{
+					{ u"ru"_q, u"Russian"_q },
+					{ u"en"_q, u"English"_q },
+				};
+				for (const auto &[code, label] : langs) {
+					const auto current =
+						(state->storage->memoryLanguage() == code);
+					auto text = label;
+					if (current) text = u"✓ "_q + text;
+					box->addRow(
+						object_ptr<Ui::SettingsButton>(
+							box,
+							rpl::single(text),
+							st::settingsButtonNoIcon)
+					)->setClickedCallback([=] {
+						state->storage->setMemoryLanguage(code);
+						box->closeBox();
+					});
+				}
+				box->addButton(tr::lng_cancel(), [=] {
+					box->closeBox();
+				});
+			}));
+		},
+		.keywords = { u"language"_q, u"russian"_q, u"english"_q },
+	});
+
 	builder.addDividerText(rpl::single(
 		u"AI Memory lets you save important facts about contacts "
-		"and query them using DeepSeek AI. Open any user's profile "
-		"and tap Memory to view saved fragments or ask AI."_q));
+		"and query them using DeepSeek AI. Select messages and tap "
+		"Index to extract facts automatically."_q));
 }
 
 void BuildUpdatesSection(

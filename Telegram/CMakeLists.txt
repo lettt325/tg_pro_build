@@ -1698,6 +1698,8 @@ PRIVATE
     pro/memory/memory_storage.h
     pro/ai/deepseek_client.cpp
     pro/ai/deepseek_client.h
+    pro/memory/memory_batch_index.cpp
+    pro/memory/memory_batch_index.h
     settings/sections/settings_chat.cpp
     settings/sections/settings_chat.h
     settings/sections/settings_blocked_peers.cpp

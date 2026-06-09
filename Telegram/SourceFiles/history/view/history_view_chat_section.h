@@ -290,6 +290,7 @@ private:
 
 	void confirmDeleteSelected();
 	void confirmForwardSelected();
+	void indexMemorySelected();
 	void clearSelected();
 	void setPinnedVisibility(bool shown);
 

@@ -96,6 +96,15 @@ void InnerWidget::setupFragmentsTab() {
 			object_ptr<Ui::VerticalLayout>(this)));
 	const auto container = _fragmentsWrap->entity();
 
+	const auto role = _peer->session().proStorage()
+		.peerRole(_peer->id.value);
+	if (!role.isEmpty()) {
+		Ui::AddSkip(container);
+		Ui::AddSubsectionTitle(
+			container,
+			rpl::single(u"Role: "_q + role));
+	}
+
 	container->add(
 		object_ptr<Ui::SettingsButton>(
 			container,
@@ -137,16 +146,24 @@ void InnerWidget::refreshFragments() {
 			? QDateTime::fromSecsSinceEpoch(
 				entry.createdAt).toString(u"dd.MM.yyyy hh:mm"_q)
 			: QString();
-		auto sourceText = (entry.source == ProMemory::Source::Message)
-			? u"From message"_q
-			: u"Manual note"_q;
+		auto headerParts = QStringList();
+		if (!entry.importance.isEmpty()) {
+			headerParts.append(u"["_q + entry.importance + u"]"_q);
+		}
+		if (!entry.category.isEmpty()) {
+			headerParts.append(entry.category);
+		}
+		headerParts.append(
+			(entry.source == ProMemory::Source::Message)
+				? u"msg"_q
+				: u"note"_q);
 		if (!dateStr.isEmpty()) {
-			sourceText += u"  \xB7  "_q + dateStr;
+			headerParts.append(dateStr);
 		}
 
 		Ui::AddSubsectionTitle(
 			_fragmentsList,
-			rpl::single(sourceText));
+			rpl::single(headerParts.join(u"  \xB7  "_q)));
 
 		const auto textLabel = _fragmentsList->add(
 			object_ptr<Ui::FlatLabel>(
@@ -156,6 +173,14 @@ void InnerWidget::refreshFragments() {
 			st::defaultBoxDividerLabelPadding);
 		textLabel->setSelectable(true);
 
+		if (!entry.relatedTo.isEmpty()) {
+			_fragmentsList->add(
+				object_ptr<Ui::FlatLabel>(
+					_fragmentsList,
+					rpl::single(u"→ "_q + entry.relatedTo),
+					st::defaultFlatLabel),
+				QMargins(22, 2, 22, 0));
+		}
 		if (!entry.tags.isEmpty()) {
 			_fragmentsList->add(
 				object_ptr<Ui::FlatLabel>(
@@ -299,8 +324,12 @@ void InnerWidget::sendAiQuery() {
 		contextParts.append(part);
 	}
 
-	const auto systemPrompt = pro.aiSystemPrompt()
-		+ u"\n\nSaved memories about this contact:\n"_q
+	const auto role = pro.peerRole(_peer->id.value);
+	auto systemPrompt = pro.aiSystemPrompt();
+	if (!role.isEmpty()) {
+		systemPrompt += u"\n\nContact role: "_q + role;
+	}
+	systemPrompt += u"\n\nSaved memories about this contact:\n"_q
 		+ contextParts.join(u"\n"_q);
 
 	auto messages = std::vector<ProAI::Message>();

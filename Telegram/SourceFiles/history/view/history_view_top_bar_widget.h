@@ -108,6 +108,9 @@ public:
 	[[nodiscard]] rpl::producer<> clearSelectionRequest() const {
 		return _clearSelection.events();
 	}
+	[[nodiscard]] rpl::producer<> indexMemorySelectionRequest() const {
+		return _indexMemorySelection.events();
+	}
 	[[nodiscard]] rpl::producer<> cancelChooseForReportRequest() const {
 		return _cancelChooseForReport.events();
 	}
@@ -216,6 +219,7 @@ private:
 
 	object_ptr<Ui::RoundButton> _clear;
 	object_ptr<Ui::RoundButton> _forward, _sendNow, _delete;
+	object_ptr<Ui::RoundButton> _indexMemory;
 	object_ptr<Ui::InputField> _searchField = { nullptr };
 	object_ptr<Ui::FadeWrapScaled<Ui::IconButton>> _chooseFromUser
 		= { nullptr };
@@ -261,6 +265,7 @@ private:
 	rpl::event_stream<> _forwardSelection;
 	rpl::event_stream<> _sendNowSelection;
 	rpl::event_stream<> _deleteSelection;
+	rpl::event_stream<> _indexMemorySelection;
 	rpl::event_stream<> _clearSelection;
 	rpl::event_stream<> _cancelChooseForReport;
 

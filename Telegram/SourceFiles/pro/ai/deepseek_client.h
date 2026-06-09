@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include <QtCore/QJsonArray>
+#include <QtCore/QJsonObject>
 #include <QtNetwork/QNetworkAccessManager>
 #include <functional>
 #include <memory>
@@ -43,7 +45,22 @@ struct Error {
 	}
 };
 
+struct ToolCall {
+	QString id;
+	QString functionName;
+	QJsonObject arguments;
+};
+
+struct ChatResponseWithTools {
+	QString content;
+	std::vector<ToolCall> toolCalls;
+	int promptTokens = 0;
+	int completionTokens = 0;
+	[[nodiscard]] bool hasToolCalls() const { return !toolCalls.empty(); }
+};
+
 using ChatCallback = std::function<void(ChatResponse, Error)>;
+using ChatWithToolsCallback = std::function<void(ChatResponseWithTools, Error)>;
 
 class DeepSeekClient final {
 public:
@@ -59,6 +76,11 @@ public:
 		const QString &systemPrompt,
 		const std::vector<Message> &messages,
 		ChatCallback callback);
+
+	void chatWithTools(
+		const QJsonArray &messages,
+		const QJsonArray &tools,
+		ChatWithToolsCallback callback);
 
 	void cancel();
 
