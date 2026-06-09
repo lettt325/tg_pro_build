@@ -264,6 +264,19 @@ void RunIndexing(
 			+ QString::number(state->totalChunks)
 			+ u" — processing..."_q);
 
+		const auto chunkText = chunks[state->currentChunk].text;
+
+		// Debug: show chunk preview
+		state->logArea->add(
+			object_ptr<Ui::FlatLabel>(
+				state->logArea,
+				rpl::single(u"[debug] chunk text (%1 chars): %2"_q
+					.arg(chunkText.length())
+					.arg(chunkText.left(120).replace('\n', ' '))),
+				st::defaultFlatLabel),
+			QMargins(0, 2, 0, 0));
+		state->logArea->resizeToWidth(state->logArea->width());
+
 		auto messages = QJsonArray();
 		messages.append(QJsonObject{
 			{ "role", "system" },
@@ -271,8 +284,19 @@ void RunIndexing(
 		});
 		messages.append(QJsonObject{
 			{ "role", "user" },
-			{ "content", chunks[state->currentChunk].text },
+			{ "content", chunkText },
 		});
+
+		// Debug: show messages array size
+		state->logArea->add(
+			object_ptr<Ui::FlatLabel>(
+				state->logArea,
+				rpl::single(u"[debug] sending %1 messages, model: %2"_q
+					.arg(messages.count())
+					.arg(session->proStorage().deepseekModel())),
+				st::defaultFlatLabel),
+			QMargins(0, 2, 0, 0));
+		state->logArea->resizeToWidth(state->logArea->width());
 
 		(*processToolCalls)(std::move(messages));
 	};
@@ -429,8 +453,39 @@ void ShowBatchIndexBox(
 		return;
 	}
 
+	// Debug: collect text samples before chunking
+	auto debugLines = QStringList();
+	debugLines.append(u"Items: "_q + QString::number(int(items.size())));
+	auto nonEmptyCount = 0;
+	for (auto i = 0; i < std::min(int(items.size()), 5); ++i) {
+		const auto t = items[i]->originalText().text;
+		debugLines.append(u"#%1: \"%2\""_q
+			.arg(i)
+			.arg(t.isEmpty() ? u"[empty]"_q : t.left(60)));
+		if (!t.isEmpty()) ++nonEmptyCount;
+	}
+	debugLines.append(u"Non-empty texts in first 5: "_q
+		+ QString::number(nonEmptyCount));
+
 	auto chunks = FormatAndChunk(items, session);
-	if (chunks.empty()) return;
+	debugLines.append(u"Chunks: "_q + QString::number(int(chunks.size())));
+	for (auto i = 0; i < int(chunks.size()); ++i) {
+		debugLines.append(u"Chunk %1: %2 msgs, %3 chars"_q
+			.arg(i)
+			.arg(chunks[i].messageCount)
+			.arg(chunks[i].text.length()));
+	}
+	const auto debugInfo = debugLines.join(u"\n"_q);
+
+	if (chunks.empty()) {
+		controller->show(Box([=](not_null<Ui::GenericBox*> box) {
+			box->setTitle(rpl::single(u"Debug: No chunks"_q));
+			box->addRow(object_ptr<Ui::FlatLabel>(
+				box, rpl::single(debugInfo), st::boxLabel));
+			box->addButton(tr::lng_close(), [=] { box->closeBox(); });
+		}));
+		return;
+	}
 
 	const auto existingRole = pro.peerRole(peerId);
 
@@ -445,6 +500,12 @@ void ShowBatchIndexBox(
 				+ QString::number(int(chunks.size()))
 				+ u" chunk(s)"_q),
 			st::boxLabel));
+
+		// Debug info
+		const auto debugLabel = box->addRow(
+			object_ptr<Ui::FlatLabel>(
+				box, rpl::single(debugInfo), st::boxLabel));
+		debugLabel->setSelectable(true);
 
 		const auto roleField = box->addRow(
 			object_ptr<Ui::InputField>(
