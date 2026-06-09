@@ -168,6 +168,10 @@ void DeepSeekClient::chatWithTools(
 		{ "stream", false },
 		{ "tools", tools },
 	};
+	// Thinking mode must be disabled when using tool calling
+	body["thinking"] = QJsonObject{
+		{ "type", u"disabled"_q },
+	};
 
 	const auto data = QJsonDocument(body).toJson(QJsonDocument::Compact);
 

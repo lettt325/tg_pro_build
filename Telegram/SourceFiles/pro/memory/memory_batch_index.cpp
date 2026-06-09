@@ -371,6 +371,34 @@ void RunIndexing(
 
 				(*processToolCalls)(std::move(messages));
 			} else {
+				// Fallback: parse plain text "- fact" lines
+				if (!response.content.isEmpty()) {
+					for (const auto &line
+							: response.content.split('\n')) {
+						auto trimmed = line.trimmed();
+						if (trimmed.startsWith(u"- "_q)) {
+							trimmed = trimmed.mid(2).trimmed();
+							if (!trimmed.isEmpty()) {
+								session->memoryStorage().addEntry(
+									peerId,
+									trimmed,
+									Source::Message,
+									0,
+									base::unixtime::now(),
+									QStringList{ u"indexed"_q });
+								state->extractedCount++;
+								state->logArea->add(
+									object_ptr<Ui::FlatLabel>(
+										state->logArea,
+										rpl::single(trimmed),
+										st::defaultFlatLabel),
+									QMargins(0, 2, 0, 0));
+							}
+						}
+					}
+					state->logArea->resizeToWidth(
+						state->logArea->width());
+				}
 				state->currentChunk++;
 				(*processChunk)();
 			}
