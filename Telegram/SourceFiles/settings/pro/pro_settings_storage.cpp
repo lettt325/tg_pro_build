@@ -377,7 +377,9 @@ void Storage::setDeepseekApiToken(const QString &token) {
 }
 
 QString Storage::deepseekModel() const {
-	return _deepseekModel;
+	return _deepseekModel.isEmpty()
+		? u"deepseek-v4-flash"_q
+		: _deepseekModel;
 }
 
 void Storage::setDeepseekModel(const QString &model) {
