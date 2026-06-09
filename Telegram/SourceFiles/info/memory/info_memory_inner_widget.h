@@ -14,8 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 class FlatLabel;
 class InputField;
+class PlainShadow;
 class RoundButton;
 class SettingsButton;
+class CustomWidthSlider;
 template <typename Widget>
 class SlideWrap;
 } // namespace Ui
@@ -29,8 +31,6 @@ class Controller;
 } // namespace Info
 
 namespace Info::Memory {
-
-class Memento;
 
 class InnerWidget final : public Ui::VerticalLayout {
 public:
@@ -54,8 +54,7 @@ private:
 	not_null<Controller*> _controller;
 	not_null<PeerData*> _peer;
 
-	Ui::SettingsButton *_fragmentsTab = nullptr;
-	Ui::SettingsButton *_aiTab = nullptr;
+	Ui::SlideWrap<Ui::CustomWidthSlider> *_tabs = nullptr;
 	Ui::SlideWrap<Ui::VerticalLayout> *_fragmentsWrap = nullptr;
 	Ui::SlideWrap<Ui::VerticalLayout> *_aiWrap = nullptr;
 	Ui::VerticalLayout *_fragmentsList = nullptr;
@@ -63,8 +62,6 @@ private:
 	Ui::VerticalLayout *_aiResults = nullptr;
 
 	std::unique_ptr<ProAI::DeepSeekClient> _aiClient;
-
-	bool _showingFragments = true;
 };
 
 } // namespace Info::Memory

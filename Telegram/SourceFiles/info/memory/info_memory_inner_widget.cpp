@@ -16,13 +16,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "ui/layers/generic_box.h"
+#include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/labels.h"
+#include "ui/widgets/shadow.h"
+#include "ui/widgets/slider_natural_width.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "window/window_session_controller.h"
+#include "styles/style_dialogs.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
@@ -41,32 +45,47 @@ InnerWidget::InnerWidget(
 	setupTabs();
 	setupFragmentsTab();
 	setupAiTab();
-
 	_aiWrap->toggle(false, anim::type::instant);
 }
 
 void InnerWidget::setupTabs() {
-	_fragmentsTab = add(
-		object_ptr<Ui::SettingsButton>(
-			this,
-			rpl::single(u"Fragments"_q),
-			st::infoSharedMediaButton));
-	_aiTab = add(
-		object_ptr<Ui::SettingsButton>(
-			this,
-			rpl::single(u"AI Assistant"_q),
-			st::infoSharedMediaButton));
+	const auto fragmentsText = u"Fragments"_q;
+	const auto aiText = u"AI Assistant"_q;
 
-	_fragmentsTab->setClickedCallback([=] {
-		_showingFragments = true;
-		_fragmentsWrap->toggle(true, anim::type::normal);
-		_aiWrap->toggle(false, anim::type::normal);
-	});
-	_aiTab->setClickedCallback([=] {
-		_showingFragments = false;
-		_fragmentsWrap->toggle(false, anim::type::normal);
-		_aiWrap->toggle(true, anim::type::normal);
-	});
+	_tabs = add(
+		object_ptr<Ui::SlideWrap<Ui::CustomWidthSlider>>(
+			this,
+			object_ptr<Ui::CustomWidthSlider>(
+				this,
+				st::dialogsSearchTabs)));
+
+	_tabs->entity()->addSection(fragmentsText);
+	_tabs->entity()->addSection(aiText);
+
+	{
+		const auto &st = st::defaultTabsSlider;
+		_tabs->entity()->setNaturalWidth(0
+			+ st.labelStyle.font->width(fragmentsText)
+			+ st.labelStyle.font->width(aiText)
+			+ rect::m::sum::h(st::boxRowPadding));
+	}
+
+	const auto shadow = Ui::CreateChild<Ui::PlainShadow>(this);
+	shadow->show();
+	_tabs->geometryValue(
+	) | rpl::on_next([=](const QRect &r) {
+		shadow->setGeometry(
+			x(),
+			rect::bottom(r) - shadow->height(),
+			width(),
+			shadow->height());
+	}, shadow->lifetime());
+
+	_tabs->entity()->sectionActivated(
+	) | rpl::on_next([=](int index) {
+		_fragmentsWrap->toggle(!index, anim::type::instant);
+		_aiWrap->toggle(index, anim::type::instant);
+	}, lifetime());
 }
 
 void InnerWidget::setupFragmentsTab() {
@@ -76,12 +95,12 @@ void InnerWidget::setupFragmentsTab() {
 			object_ptr<Ui::VerticalLayout>(this)));
 	const auto container = _fragmentsWrap->entity();
 
-	const auto addBtn = container->add(
+	container->add(
 		object_ptr<Ui::SettingsButton>(
 			container,
-			rpl::single(u"+ Add Memory"_q),
-			st::infoSharedMediaButton));
-	addBtn->setClickedCallback([=] { addManualEntry(); });
+			rpl::single(u"Add Memory Note"_q),
+			st::infoSharedMediaButton)
+	)->setClickedCallback([=] { addManualEntry(); });
 
 	_fragmentsList = container->add(
 		object_ptr<Ui::VerticalLayout>(container));
@@ -99,13 +118,10 @@ void InnerWidget::refreshFragments() {
 		.entriesForPeer(peerId);
 
 	if (entries.empty()) {
-		_fragmentsList->add(
-			object_ptr<Ui::FlatLabel>(
-				_fragmentsList,
-				rpl::single(u"No memories saved yet.\n"
-					"Right-click a message and tap Save to Memory."_q),
-				st::boxLabel),
-			QMargins(16, 12, 16, 12));
+		Ui::AddDividerText(
+			_fragmentsList,
+			rpl::single(u"No memories saved yet. "
+				"Right-click a message and tap Save to Memory."_q));
 		_fragmentsList->resizeToWidth(width());
 		return;
 	}
@@ -113,55 +129,52 @@ void InnerWidget::refreshFragments() {
 	for (auto it = entries.rbegin(); it != entries.rend(); ++it) {
 		const auto &entry = *it;
 		const auto entryId = entry.id;
-		const auto wrap = _fragmentsList->add(
-			object_ptr<Ui::VerticalLayout>(_fragmentsList),
-			QMargins(16, 8, 16, 0));
+
+		Ui::AddSkip(_fragmentsList);
 
 		const auto dateStr = entry.createdAt
 			? QDateTime::fromSecsSinceEpoch(
 				entry.createdAt).toString(u"dd.MM.yyyy hh:mm"_q)
 			: QString();
-		auto headerText = (entry.source == ProMemory::Source::Message)
+		auto sourceText = (entry.source == ProMemory::Source::Message)
 			? u"From message"_q
 			: u"Manual note"_q;
 		if (!dateStr.isEmpty()) {
-			headerText += u"  "_q + dateStr;
+			sourceText += u"  \xB7  "_q + dateStr;
 		}
 
-		wrap->add(
-			object_ptr<Ui::FlatLabel>(
-				wrap,
-				rpl::single(headerText),
-				st::boxLabel),
-			QMargins(0, 0, 0, 2));
+		Ui::AddSubsectionTitle(
+			_fragmentsList,
+			rpl::single(sourceText));
 
-		const auto textLabel = wrap->add(
+		const auto textLabel = _fragmentsList->add(
 			object_ptr<Ui::FlatLabel>(
-				wrap,
+				_fragmentsList,
 				rpl::single(entry.text),
-				st::boxLabel));
+				st::boxDividerLabel),
+			st::defaultBoxDividerLabelPadding);
 		textLabel->setSelectable(true);
 
 		if (!entry.tags.isEmpty()) {
-			wrap->add(
+			_fragmentsList->add(
 				object_ptr<Ui::FlatLabel>(
-					wrap,
-					rpl::single(u"Tags: "_q + entry.tags.join(u", "_q)),
-					st::boxLabel),
-				QMargins(0, 2, 0, 0));
+					_fragmentsList,
+					rpl::single(entry.tags.join(u", "_q)),
+					st::defaultFlatLabel),
+				QMargins(22, 2, 22, 0));
 		}
 
-		const auto deleteBtn = wrap->add(
-			object_ptr<Ui::LinkButton>(
-				wrap,
-				u"Delete"_q),
-			QMargins(0, 4, 0, 4));
-		deleteBtn->setClickedCallback([=] {
+		_fragmentsList->add(
+			object_ptr<Ui::SettingsButton>(
+				_fragmentsList,
+				rpl::single(u"Delete"_q),
+				st::settingsAttentionButtonWithIcon)
+		)->setClickedCallback([=] {
 			_peer->session().memoryStorage().removeEntry(entryId);
 			refreshFragments();
 		});
 
-		wrap->add(object_ptr<Ui::FixedHeightWidget>(wrap, 1));
+		Ui::AddDivider(_fragmentsList);
 	}
 
 	_fragmentsList->resizeToWidth(width());
@@ -215,20 +228,31 @@ void InnerWidget::setupAiTab() {
 			object_ptr<Ui::VerticalLayout>(this)));
 	const auto container = _aiWrap->entity();
 
+	Ui::AddSkip(container);
+	Ui::AddSubsectionTitle(
+		container,
+		rpl::single(u"Ask about this person"_q));
+
 	_aiInput = container->add(
 		object_ptr<Ui::InputField>(
 			container,
 			st::defaultInputField,
-			rpl::single(u"Ask about this person..."_q)),
-		QMargins(16, 12, 16, 8));
+			rpl::single(u"Your question..."_q)),
+		st::defaultBoxDividerLabelPadding);
 
-	const auto sendBtn = container->add(
+	Ui::AddSkip(container);
+
+	container->add(
 		object_ptr<Ui::RoundButton>(
 			container,
 			rpl::single(u"Ask AI"_q),
 			st::defaultBoxButton),
-		QMargins(16, 0, 16, 12));
-	sendBtn->setClickedCallback([=] { sendAiQuery(); });
+		QMargins(22, 0, 22, 0)
+	)->setClickedCallback([=] { sendAiQuery(); });
+
+	Ui::AddSkip(container);
+	Ui::AddDivider(container);
+	Ui::AddSkip(container);
 
 	_aiResults = container->add(
 		object_ptr<Ui::VerticalLayout>(container));
@@ -244,13 +268,10 @@ void InnerWidget::sendAiQuery() {
 		while (_aiResults->count()) {
 			delete _aiResults->widgetAt(0);
 		}
-		_aiResults->add(
-			object_ptr<Ui::FlatLabel>(
-				_aiResults,
-				rpl::single(
-					u"Please set DeepSeek API token in Pro Settings."_q),
-				st::boxLabel),
-			QMargins(16, 8, 16, 8));
+		Ui::AddDividerText(
+			_aiResults,
+			rpl::single(
+				u"Please set DeepSeek API token in Pro Settings."_q));
 		_aiResults->resizeToWidth(width());
 		return;
 	}
@@ -287,12 +308,15 @@ void InnerWidget::sendAiQuery() {
 	while (_aiResults->count()) {
 		delete _aiResults->widgetAt(0);
 	}
+	Ui::AddSubsectionTitle(
+		_aiResults,
+		rpl::single(u"Response"_q));
 	_aiResults->add(
 		object_ptr<Ui::FlatLabel>(
 			_aiResults,
 			rpl::single(u"Thinking..."_q),
-			st::boxLabel),
-		QMargins(16, 8, 16, 8));
+			st::boxDividerLabel),
+		st::defaultBoxDividerLabelPadding);
 	_aiResults->resizeToWidth(width());
 
 	const auto guard = QPointer<InnerWidget>(this);
@@ -303,20 +327,20 @@ void InnerWidget::sendAiQuery() {
 		while (self->_aiResults->count()) {
 			delete self->_aiResults->widgetAt(0);
 		}
+		Ui::AddSubsectionTitle(
+			self->_aiResults,
+			rpl::single(u"Response"_q));
 		if (error) {
-			self->_aiResults->add(
-				object_ptr<Ui::FlatLabel>(
-					self->_aiResults,
-					rpl::single(u"Error: "_q + error.message),
-					st::boxLabel),
-				QMargins(16, 8, 16, 8));
+			Ui::AddDividerText(
+				self->_aiResults,
+				rpl::single(u"Error: "_q + error.message));
 		} else {
 			const auto label = self->_aiResults->add(
 				object_ptr<Ui::FlatLabel>(
 					self->_aiResults,
 					rpl::single(response.content),
-					st::boxLabel),
-				QMargins(16, 8, 16, 8));
+					st::boxDividerLabel),
+				st::defaultBoxDividerLabelPadding);
 			label->setSelectable(true);
 		}
 		self->_aiResults->resizeToWidth(self->width());
